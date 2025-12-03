@@ -6,7 +6,6 @@ import { CONFIG } from './config.js';
 export class ConfigManager {
     constructor () {
         this.hiddenUserIds = []
-        this.normalizedHiddenUserIds = []
         this.load()
     }
 
@@ -23,23 +22,13 @@ export class ConfigManager {
             if (!trimmed) {
                 return
             }
-            const key = trimmed.toLowerCase()
-            if (seen.has(key)) {
+            if (seen.has(trimmed)) {
                 return
             }
-            seen.add(key)
+            seen.add(trimmed)
             result.push(trimmed)
         })
         return result
-    }
-
-    /**
-     * 大文字小文字を区別しない比較のためにユーザーIDを正規化（小文字化）する
-     * @param {string[]} ids - ユーザーIDの配列
-     * @returns {string[]} 小文字化されたユーザーIDの配列
-     */
-    buildNormalizedHiddenUserIds (ids) {
-        return ids.map(id => id.toLowerCase())
     }
 
     /**
@@ -60,7 +49,6 @@ export class ConfigManager {
         }
 
         this.hiddenUserIds = ids
-        this.normalizedHiddenUserIds = this.buildNormalizedHiddenUserIds(ids)
         return this.hiddenUserIds
     }
 
@@ -71,7 +59,6 @@ export class ConfigManager {
     save (ids) {
         const sanitized = this.sanitizeIds(ids)
         this.hiddenUserIds = sanitized
-        this.normalizedHiddenUserIds = this.buildNormalizedHiddenUserIds(this.hiddenUserIds)
         GM_setValues({
             [CONFIG.STORAGE_KEY]: this.hiddenUserIds
         })
@@ -84,13 +71,5 @@ export class ConfigManager {
      */
     getIds () {
         return this.hiddenUserIds
-    }
-
-    /**
-     * 正規化（小文字化）された非表示ユーザーIDリストを取得する
-     * @returns {string[]} 正規化された非表示ユーザーIDの配列
-     */
-    getNormalizedIds () {
-        return this.normalizedHiddenUserIds
     }
 }

@@ -28,13 +28,13 @@ export class FilterEngine {
             userId = hrefMatch[1]
         }
 
-        const normalizedId = (userId || '').toLowerCase()
-        if (!normalizedId) {
+        const targetId = userId || ''
+        if (!targetId) {
             return false
         }
 
-        const shouldHide = this.configManager.getNormalizedIds().some(keyword =>
-            normalizedId.includes(keyword)
+        const shouldHide = this.configManager.getIds().some(keyword =>
+            targetId === keyword
         )
         return shouldHide
     }
