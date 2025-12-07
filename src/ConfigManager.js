@@ -5,7 +5,8 @@ import { CONFIG } from './config.js';
  */
 export class ConfigManager {
     constructor () {
-        this.hiddenUserIds = []
+        this.hiddenUserIds = CONFIG.DEFAULT_HIDDEN_USER_IDS.slice()
+        this.mediaFilterTargets = CONFIG.MEDIA_FILTER.DEFAULT_TARGET_LISTS.slice()
         this.load()
     }
 
@@ -32,10 +33,18 @@ export class ConfigManager {
     }
 
     /**
+     * Tampermonkeyストレージから設定を読み込む
+     */
+    load () {
+        this.loadHiddenUserIds()
+        this.loadMediaFilterTargets()
+    }
+
+    /**
      * Tampermonkeyストレージから非表示ユーザーIDを読み込む
      * @returns {string[]} 読み込まれた非表示ユーザーIDの配列
      */
-    load () {
+    loadHiddenUserIds () {
         const storedValues = GM_getValues({
             [CONFIG.STORAGE_KEY]: CONFIG.DEFAULT_HIDDEN_USER_IDS
         })
@@ -50,6 +59,27 @@ export class ConfigManager {
 
         this.hiddenUserIds = ids
         return this.hiddenUserIds
+    }
+
+    /**
+     * Tampermonkeyストレージからメディアフィルタ対象リストを読み込む
+     * @returns {string[]} 読み込まれたリスト名の配列
+     */
+    loadMediaFilterTargets () {
+        const storedValues = GM_getValues({
+            [CONFIG.MEDIA_FILTER.STORAGE_KEY]: CONFIG.MEDIA_FILTER.DEFAULT_TARGET_LISTS
+        })
+        const stored = storedValues?.[CONFIG.MEDIA_FILTER.STORAGE_KEY]
+        let lists = CONFIG.MEDIA_FILTER.DEFAULT_TARGET_LISTS.slice()
+
+        if (Array.isArray(stored)) {
+            lists = this.sanitizeIds(stored)
+        } else if (typeof stored === 'string') {
+            lists = this.sanitizeIds(stored.split(/[\r\n,]+/))
+        }
+
+        this.mediaFilterTargets = lists
+        return this.mediaFilterTargets
     }
 
     /**
@@ -74,6 +104,27 @@ export class ConfigManager {
     }
 
     /**
+     * メディアフィルタ対象リストを取得する
+     * @returns {string[]} メディアフィルタ対象のリスト名配列
+     */
+    getMediaFilterTargets () {
+        return this.mediaFilterTargets
+    }
+
+    /**
+     * メディアフィルタ対象リストを保存する
+     * @param {string[]} lists - 保存するリスト名配列
+     */
+    saveMediaFilterTargets (lists) {
+        const sanitized = this.sanitizeIds(lists)
+        this.mediaFilterTargets = sanitized
+        GM_setValues({
+            [CONFIG.MEDIA_FILTER.STORAGE_KEY]: this.mediaFilterTargets
+        })
+        console.log('mediaFilterTargets 更新:', this.mediaFilterTargets)
+    }
+
+    /**
      * 現在の設定をJSON形式でエクスポートするための情報を生成する
      * @returns {{ fileName: string, mimeType: string, content: string }} エクスポートに必要な情報
      */
@@ -84,7 +135,8 @@ export class ConfigManager {
             storageKey: CONFIG.STORAGE_KEY,
             version: CONFIG.EXPORT_VERSION,
             exportedAt: now,
-            hiddenUserIds: this.getIds()
+            hiddenUserIds: this.getIds(),
+            mediaFilterTargets: this.getMediaFilterTargets()
         }
         return {
             fileName: `hidden-user-ids-${sanitizedNow}.json`,
@@ -96,7 +148,7 @@ export class ConfigManager {
     /**
      * エクスポートJSON文字列を検証してインポート情報を返す
      * @param {string} jsonText - 読み込んだJSON文字列
-     * @returns {{ ids: string[], meta: { exportedAt: string, version: number } }} インポートに使用する情報
+     * @returns {{ ids: string[], mediaFilterTargets: string[], meta: { exportedAt: string, version: number } }} インポートに使用する情報
      */
     parseImportPayload (jsonText) {
         if (typeof jsonText !== 'string') {
@@ -134,9 +186,15 @@ export class ConfigManager {
             throw new Error('hiddenUserIdsが配列ではありません')
         }
 
+        let mediaFilterTargets = CONFIG.MEDIA_FILTER.DEFAULT_TARGET_LISTS.slice()
+        if (Array.isArray(parsed.mediaFilterTargets)) {
+            mediaFilterTargets = this.sanitizeIds(parsed.mediaFilterTargets)
+        }
+
         const sanitized = this.sanitizeIds(parsed.hiddenUserIds)
         return {
             ids: sanitized,
+            mediaFilterTargets,
             meta: {
                 exportedAt: parsed.exportedAt,
                 version: parsed.version

@@ -1,6 +1,7 @@
 import { CONFIG } from './config.js';
 import { ConfigManager } from './ConfigManager.js';
 import { FilterEngine } from './FilterEngine.js';
+import { ColumnMediaFilter } from './ColumnMediaFilter.js';
 
 /**
  * ユーザースクリプトの機能を統括するメインアプリケーションクラス
@@ -9,6 +10,7 @@ export class App {
     constructor () {
         this.configManager = new ConfigManager()
         this.filterEngine = new FilterEngine(this.configManager)
+        this.columnMediaFilter = new ColumnMediaFilter(this.configManager)
         this.observer = null
     }
 
@@ -19,7 +21,7 @@ export class App {
         this.ensureHiddenStyle()
         this.registerMenu()
         this.startObserver()
-        this.filterCells()
+        this.applyFilters()
     }
 
     /**
@@ -40,7 +42,7 @@ export class App {
                 return
             }
             this.configManager.save([...this.configManager.getIds(), ...additions])
-            this.filterCells()
+            this.applyFilters()
         })
 
         GM_registerMenuCommand('非表示リストをエクスポート', () => {
@@ -50,6 +52,10 @@ export class App {
 
         GM_registerMenuCommand('非表示リストをインポート', () => {
             this.promptImportFile()
+        })
+
+        GM_registerMenuCommand('メディアフィルタ対象リストを追加', () => {
+            this.promptAddMediaFilterList()
         })
     }
 
@@ -63,8 +69,23 @@ export class App {
         // display: none を適用するスタイルを一度だけ挿入
         const style = document.createElement('style')
         style.id = CONFIG.HIDDEN_STYLE_ID
-        style.textContent = `.${CONFIG.HIDDEN_CLASS_NAME} { display: none !important; }`
+        const hiddenSelectors = [
+            CONFIG.HIDDEN_CLASS_NAME,
+            CONFIG.MEDIA_FILTER.HIDDEN_CLASS_NAME
+        ]
+            .filter(Boolean)
+            .map(className => `.${className}`)
+            .join(', ')
+        style.textContent = `${hiddenSelectors} { display: none !important; }`
         document.head.appendChild(style)
+    }
+
+    /**
+     * すべてのフィルタリング処理を実行する
+     */
+    applyFilters () {
+        this.filterCells()
+        this.columnMediaFilter.filter()
     }
 
     /**
@@ -85,7 +106,7 @@ export class App {
      * DOMの変更を監視し、フィルタリングを再適用するためのMutationObserverを開始する
      */
     startObserver () {
-        this.observer = new MutationObserver(() => this.filterCells())
+        this.observer = new MutationObserver(() => this.applyFilters())
         this.observer.observe(document.body, {
             childList: true,
             subtree: true,
@@ -154,6 +175,31 @@ export class App {
     }
 
     /**
+     * メディアフィルタ対象リストを追加するための入力ダイアログを表示する
+     */
+    promptAddMediaFilterList () {
+        const input = window.prompt(
+            'メディアフィルタ対象に加えたいリスト名を改行区切りで入力してください。',
+            ''
+        )
+        if (input === null) {
+            return
+        }
+        const additions = this.configManager.sanitizeIds(input.split(/\r?\n/))
+        if (!additions.length) {
+            window.alert('有効なリスト名が入力されませんでした')
+            return
+        }
+        const updated = [
+            ...this.configManager.getMediaFilterTargets(),
+            ...additions
+        ]
+        this.configManager.saveMediaFilterTargets(updated)
+        window.alert('メディアフィルタ対象リストを更新しました')
+        this.applyFilters()
+    }
+
+    /**
      * 選択されたJSONファイルを読み取る
      * @param {File} file - 読み込むファイル
      */
@@ -182,14 +228,15 @@ export class App {
             return
         }
 
-        const confirmMessage = `非表示リストを上書きします。\nエクスポート日時: ${parsed.meta.exportedAt}\nユーザー数: ${parsed.ids.length}\nよろしいですか？`
+        const confirmMessage = `非表示リストとメディアフィルタ設定を上書きします。\nエクスポート日時: ${parsed.meta.exportedAt}\nユーザー数: ${parsed.ids.length}\n対象リスト数: ${parsed.mediaFilterTargets.length}\nよろしいですか？`
         const shouldOverwrite = window.confirm(confirmMessage)
         if (!shouldOverwrite) {
             return
         }
 
         this.configManager.save(parsed.ids)
+        this.configManager.saveMediaFilterTargets(parsed.mediaFilterTargets)
         window.alert('非表示リストを更新しました')
-        this.filterCells()
+        this.applyFilters()
     }
 }
