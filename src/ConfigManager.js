@@ -72,4 +72,75 @@ export class ConfigManager {
     getIds () {
         return this.hiddenUserIds
     }
+
+    /**
+     * 現在の設定をJSON形式でエクスポートするための情報を生成する
+     * @returns {{ fileName: string, mimeType: string, content: string }} エクスポートに必要な情報
+     */
+    createExportPayload () {
+        const now = new Date().toISOString()
+        const sanitizedNow = now.replace(/[:.]/g, '-')
+        const payload = {
+            storageKey: CONFIG.STORAGE_KEY,
+            version: CONFIG.EXPORT_VERSION,
+            exportedAt: now,
+            hiddenUserIds: this.getIds()
+        }
+        return {
+            fileName: `hidden-user-ids-${sanitizedNow}.json`,
+            mimeType: 'application/json',
+            content: JSON.stringify(payload, null, 2)
+        }
+    }
+
+    /**
+     * エクスポートJSON文字列を検証してインポート情報を返す
+     * @param {string} jsonText - 読み込んだJSON文字列
+     * @returns {{ ids: string[], meta: { exportedAt: string, version: number } }} インポートに使用する情報
+     */
+    parseImportPayload (jsonText) {
+        if (typeof jsonText !== 'string') {
+            throw new Error('JSON文字列を取得できませんでした')
+        }
+
+        let parsed = null
+        try {
+            parsed = JSON.parse(jsonText)
+        } catch (error) {
+            throw new Error('JSONの解析に失敗しました')
+        }
+
+        if (!parsed || typeof parsed !== 'object') {
+            throw new Error('JSONオブジェクトではありません')
+        }
+
+        if (parsed.storageKey !== CONFIG.STORAGE_KEY) {
+            throw new Error('storageKeyが一致しません')
+        }
+
+        if (typeof parsed.version !== 'number') {
+            throw new Error('versionが不正です')
+        }
+
+        if (parsed.version !== CONFIG.EXPORT_VERSION) {
+            throw new Error('versionが一致しません')
+        }
+
+        if (typeof parsed.exportedAt !== 'string' || !parsed.exportedAt) {
+            throw new Error('exportedAtが不正です')
+        }
+
+        if (!Array.isArray(parsed.hiddenUserIds)) {
+            throw new Error('hiddenUserIdsが配列ではありません')
+        }
+
+        const sanitized = this.sanitizeIds(parsed.hiddenUserIds)
+        return {
+            ids: sanitized,
+            meta: {
+                exportedAt: parsed.exportedAt,
+                version: parsed.version
+            }
+        }
+    }
 }

@@ -3,6 +3,7 @@
  */
 export const CONFIG = {
     STORAGE_KEY: 'hiddenUserIds',
+    EXPORT_VERSION: 1,
     DEFAULT_HIDDEN_USER_IDS: [],
     HIDDEN_CLASS_NAME: 'tm-hidden-cell',
     HIDDEN_STYLE_ID: 'tm-hidden-cell-style',
