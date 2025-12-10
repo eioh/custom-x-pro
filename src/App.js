@@ -4,7 +4,7 @@ import { FilterEngine } from './FilterEngine.js';
 import { ColumnMediaFilter } from './ColumnMediaFilter.js';
 
 /**
- * ユーザースクリプトの機能を統括するメインアプリケーションクラス
+ * 全体のライフサイクルを管理するアプリケーションクラス
  */
 export class App {
     constructor () {
@@ -19,18 +19,19 @@ export class App {
      */
     init () {
         this.ensureHiddenStyle()
+        this.configManager.purgeExpiredHiddenPosts()
         this.registerMenu()
         this.startObserver()
         this.applyFilters()
     }
 
     /**
-     * ユーザーIDを追加するためのTampermonkeyメニューコマンドを登録する
+     * Tampermonkeyメニューを登録する
      */
     registerMenu () {
         GM_registerMenuCommand('ユーザーIDを追加して非表示', () => {
             const input = window.prompt(
-                '追加したいユーザーIDを改行区切りで入力してください。',
+                '非表示にしたいユーザーIDを1行ずつ入力してください',
                 ''
             )
             if (input === null) {
@@ -38,35 +39,51 @@ export class App {
             }
             const additions = this.configManager.sanitizeIds(input.split(/\r?\n/))
             if (!additions.length) {
-                console.log('追加IDなし: 変更を行いませんでした')
+                window.alert('追加するIDがありません')
                 return
             }
             this.configManager.save([...this.configManager.getIds(), ...additions])
             this.applyFilters()
         })
 
-        GM_registerMenuCommand('非表示リストをエクスポート', () => {
+        GM_registerMenuCommand('ポストURLを追加して非表示', () => {
+            const input = window.prompt(
+                '非表示にしたいポストのURLを1行ずつ入力してください（例: https://x.com/example_user/status/1234567890123456789?s=20）',
+                ''
+            )
+            if (input === null) {
+                return
+            }
+            const postIds = this.extractPostIdsFromText(input)
+            if (!postIds.length) {
+                window.alert('ポストURLからIDを取得できませんでした')
+                return
+            }
+            postIds.forEach(id => this.configManager.upsertHiddenPostId(id))
+            this.applyFilters()
+        })
+
+        GM_registerMenuCommand('非表示リストを書き出し', () => {
             const payload = this.configManager.createExportPayload()
             this.downloadExport(payload)
         })
 
-        GM_registerMenuCommand('非表示リストをインポート', () => {
+        GM_registerMenuCommand('非表示リストを読み込み', () => {
             this.promptImportFile()
         })
 
-        GM_registerMenuCommand('メディアフィルタ対象リストを追加', () => {
+        GM_registerMenuCommand('メディアなしフィルタ対象リストを追加', () => {
             this.promptAddMediaFilterList()
         })
     }
 
     /**
-     * セルを非表示にするためのCSSスタイルがドキュメントに挿入されていることを確認する
+     * 非表示用CSSを挿入する
      */
     ensureHiddenStyle () {
         if (document.getElementById(CONFIG.HIDDEN_STYLE_ID)) {
             return
         }
-        // display: none を適用するスタイルを一度だけ挿入
         const style = document.createElement('style')
         style.id = CONFIG.HIDDEN_STYLE_ID
         const hiddenSelectors = [
@@ -81,7 +98,7 @@ export class App {
     }
 
     /**
-     * すべてのフィルタリング処理を実行する
+     * 登録済みフィルタを適用する
      */
     applyFilters () {
         this.filterCells()
@@ -89,10 +106,9 @@ export class App {
     }
 
     /**
-     * ドキュメント内の全セルをフィルタリングし、非表示ユーザーIDに一致するものを隠す
+     * タイムラインのセルにフィルタを適用する
      */
     filterCells () {
-        // セルごとにユーザーIDのマッチ判定を実施
         const cells = Array.from(
             document.querySelectorAll(CONFIG.SELECTORS.CELL)
         )
@@ -103,7 +119,7 @@ export class App {
     }
 
     /**
-     * DOMの変更を監視し、フィルタリングを再適用するためのMutationObserverを開始する
+     * MutationObserverでDOM変化を監視する
      */
     startObserver () {
         this.observer = new MutationObserver(() => this.applyFilters())
@@ -115,12 +131,12 @@ export class App {
     }
 
     /**
-     * エクスポート対象のJSON文字列をダウンロードさせる
-     * @param {{ fileName: string, mimeType: string, content: string }} payload - エクスポート情報
+     * エクスポート用JSONペイロードをダウンロードする
+     * @param {{ fileName: string, mimeType: string, content: string }} payload - ダウンロード対象
      */
     downloadExport (payload) {
         if (!payload || !payload.content) {
-            console.warn('エクスポート対象のデータが存在しません')
+            console.warn('エクスポートペイロードが空です')
             return
         }
 
@@ -154,7 +170,7 @@ export class App {
     }
 
     /**
-     * ファイル選択ダイアログを表示し、選択されたJSONを読み込む
+     * インポート用ファイル選択ダイアログを表示する
      */
     promptImportFile () {
         const input = document.createElement('input')
@@ -175,11 +191,11 @@ export class App {
     }
 
     /**
-     * メディアフィルタ対象リストを追加するための入力ダイアログを表示する
+     * メディアなしフィルタ対象リストを追加する
      */
     promptAddMediaFilterList () {
         const input = window.prompt(
-            'メディアフィルタ対象に加えたいリスト名を改行区切りで入力してください。',
+            'メディアなしフィルタ対象に追加したいリスト名を1行ずつ入力してください',
             ''
         )
         if (input === null) {
@@ -187,7 +203,7 @@ export class App {
         }
         const additions = this.configManager.sanitizeIds(input.split(/\r?\n/))
         if (!additions.length) {
-            window.alert('有効なリスト名が入力されませんでした')
+            window.alert('追加するリスト名がありません')
             return
         }
         const updated = [
@@ -195,13 +211,13 @@ export class App {
             ...additions
         ]
         this.configManager.saveMediaFilterTargets(updated)
-        window.alert('メディアフィルタ対象リストを更新しました')
+        window.alert('メディアなしフィルタ対象リストを更新しました')
         this.applyFilters()
     }
 
     /**
-     * 選択されたJSONファイルを読み取る
-     * @param {File} file - 読み込むファイル
+     * インポート用ファイルを読み取る
+     * @param {File} file - 選択されたファイル
      */
     readImportFile (file) {
         const reader = new FileReader()
@@ -216,27 +232,47 @@ export class App {
     }
 
     /**
-     * インポート処理を実行し、ユーザーに確認のうえ保存する
-     * @param {string} text - ファイルから取得したJSON文字列
+     * インポートされたJSONテキストを処理する
+     * @param {string} text - インポートされたJSON文字列
      */
     processImportedText (text) {
         let parsed = null
         try {
             parsed = this.configManager.parseImportPayload(text)
         } catch (error) {
-            window.alert(error?.message || 'インポートに失敗しました')
+            window.alert(error?.message || 'JSONの読み込みに失敗しました')
             return
         }
 
-        const confirmMessage = `非表示リストとメディアフィルタ設定を上書きします。\nエクスポート日時: ${parsed.meta.exportedAt}\nユーザー数: ${parsed.ids.length}\n対象リスト数: ${parsed.mediaFilterTargets.length}\nよろしいですか？`
+        const confirmMessage = `非表示リストを上書きしますか？\nエクスポート日時: ${parsed.meta.exportedAt}\nユーザーID: ${parsed.ids.length}件\nポストID: ${parsed.hiddenPosts.length}件\nメディアなし対象リスト: ${parsed.mediaFilterTargets.length}件`
         const shouldOverwrite = window.confirm(confirmMessage)
         if (!shouldOverwrite) {
             return
         }
 
         this.configManager.save(parsed.ids)
+        this.configManager.saveHiddenPosts(parsed.hiddenPosts)
         this.configManager.saveMediaFilterTargets(parsed.mediaFilterTargets)
-        window.alert('非表示リストを更新しました')
+        window.alert('非表示リストをインポートしました')
         this.applyFilters()
+    }
+
+    /**
+     * テキストからポストIDを抽出する
+     * @param {string} text - URLが含まれるテキスト
+     * @returns {string[]} 抽出したポストID一覧
+     */
+    extractPostIdsFromText (text) {
+        if (typeof text !== 'string') {
+            return []
+        }
+        const ids = []
+        const regex = /\/status\/(\d+)/g
+        let match = regex.exec(text)
+        while (match) {
+            ids.push(match[1])
+            match = regex.exec(text)
+        }
+        return this.configManager.sanitizeIds(ids)
     }
 }

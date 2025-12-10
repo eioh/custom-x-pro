@@ -3,10 +3,16 @@
  */
 export const CONFIG = {
     STORAGE_KEY: 'hiddenUserIds',
-    EXPORT_VERSION: 1,
+    EXPORT_VERSION: 2,
     DEFAULT_HIDDEN_USER_IDS: [],
     HIDDEN_CLASS_NAME: 'tm-hidden-cell',
     HIDDEN_STYLE_ID: 'tm-hidden-cell-style',
+    POST_FILTER: {
+        STORAGE_KEY: 'hiddenPosts',
+        DEFAULT_ENTRIES: [],
+        TTL_MS: 1000 * 60 * 60 * 24 * 30, // 30日
+        SELECTOR: 'a[href*="/status/"][href$="/analytics"]'
+    },
     MEDIA_FILTER: {
         HIDDEN_CLASS_NAME: 'tm-hidden-no-media',
         STORAGE_KEY: 'mediaFilterTargetLists',
