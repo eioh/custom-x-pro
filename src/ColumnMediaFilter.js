@@ -1,7 +1,7 @@
-import { CONFIG } from './config.js';
+import { CONFIG } from './config.js'
 
 /**
- * 指定されたリストカラムでメディア付きポストのみを表示するフィルター
+ * メディア付きポストのみを表示するカラム用フィルター
  */
 export class ColumnMediaFilter {
     /**
@@ -14,7 +14,7 @@ export class ColumnMediaFilter {
     }
 
     /**
-     * 対象カラムを走査してメディア無しポストを非表示にする
+     * 対象カラムの全ポストにメディア判定を適用する
      */
     filter () {
         const keywords = this.getTargetListKeywords()
@@ -35,8 +35,8 @@ export class ColumnMediaFilter {
     }
 
     /**
-     * 対象のリストカラムを取得する
-     * @returns {HTMLElement[]} カラム要素の配列
+     * 判定対象となるカラム要素を取得する
+     * @returns {HTMLElement[]} メディアフィルター対象カラム一覧
      */
     getTargetColumns (keywords) {
         const columns = Array.from(
@@ -55,7 +55,7 @@ export class ColumnMediaFilter {
     }
 
     /**
-     * 現在のターゲットリスト名を取得する
+     * 判定対象リスト名のキーワードを取得する
      * @returns {string[]} リスト名キーワード配列
      */
     getTargetListKeywords () {
@@ -64,9 +64,9 @@ export class ColumnMediaFilter {
     }
 
     /**
-     * ポストを非表示にすべきか判定する
-     * @param {HTMLElement} tweet - 判定対象の要素
-     * @returns {boolean} 非表示にする場合はtrue
+     * ポストを非表示にするかどうかを判定する
+     * @param {HTMLElement} tweet - 判定対象のセル
+     * @returns {boolean} 非表示にすべき場合はtrue
      */
     shouldHideTweet (tweet) {
         if (!tweet) {
@@ -75,19 +75,58 @@ export class ColumnMediaFilter {
         if (this.shouldSkip(tweet)) {
             return false
         }
-        const hasMedia = this.mediaSelectors.some(selector =>
-            tweet.querySelector(selector)
-        )
-        return !hasMedia
+        const quoteContainers = this.getQuoteContainers(tweet)
+        if (!quoteContainers.length) {
+            return !this.hasMedia(tweet)
+        }
+        return !this.hasMedia(tweet, quoteContainers)
     }
 
     /**
-     * スキップ対象のセルかどうかを判定する
-     * @param {HTMLElement} tweet - チェック対象
-     * @returns {boolean} スキップすべき場合はtrue
+     * スキップ対象のセルであるかを確認する
+     * @param {HTMLElement} tweet - ポストセル
+     * @returns {boolean} スキップする場合はtrue
      */
     shouldSkip (tweet) {
         const text = (tweet.textContent || '').trim()
         return this.skipTexts.some(label => label === text)
+    }
+
+    /**
+     * 引用カードのコンテナ要素一覧を取得する
+     * @param {HTMLElement} tweet - ポストセル
+     * @returns {HTMLElement[]} 引用カードコンテナ
+     */
+    getQuoteContainers (tweet) {
+        return Array.from(
+            tweet.querySelectorAll(CONFIG.POST_FILTER.QUOTE_CONTAINER_SELECTOR)
+        )
+    }
+
+    /**
+     * 指定の要素配下にメディアが存在するか判定する
+     * @param {HTMLElement} tweet - ポストセル
+     * @param {HTMLElement[]} excludeContainers - 判定から除外するコンテナ
+     * @returns {boolean} メディアが存在する場合はtrue
+     */
+    hasMedia (tweet, excludeContainers = []) {
+        const excludes = excludeContainers.filter(Boolean)
+        return this.mediaSelectors.some(selector => {
+            const mediaNodes = Array.from(tweet.querySelectorAll(selector))
+            return mediaNodes.some(node => !this.isExcluded(node, excludes))
+        })
+    }
+
+    /**
+     * ノードが除外対象コンテナ内に含まれるか判定する
+     * @param {HTMLElement} node - 判定するノード
+     * @param {HTMLElement[]} containers - コンテナ一覧
+     * @returns {boolean} containerに含まれる場合はtrue
+     */
+    isExcluded (node, containers) {
+        return containers.some(container =>
+            typeof container.contains === 'function' &&
+            container.contains(node)
+        )
     }
 }
