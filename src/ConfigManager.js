@@ -36,6 +36,43 @@ export class ConfigManager {
     }
 
     /**
+     * ユーザーIDリストを形式チェック込みで整形する
+     * @param {string[]} ids - 整形対象のユーザーIDリスト
+     * @returns {string[]} 整形済みのユーザーIDリスト
+     */
+    sanitizeUserIds (ids) {
+        const result = []
+        const seen = new Set()
+        ids.forEach(id => {
+            if (typeof id !== 'string') {
+                return
+            }
+            const trimmed = id.trim()
+            if (!trimmed) {
+                return
+            }
+            if (!this.isValidUserId(trimmed)) {
+                return
+            }
+            if (seen.has(trimmed)) {
+                return
+            }
+            seen.add(trimmed)
+            result.push(trimmed)
+        })
+        return result
+    }
+
+    /**
+     * ユーザーIDの形式（半角英数字とアンダースコアのみ）を判定する
+     * @param {string} id - 判定対象のユーザーID
+     * @returns {boolean} 許容形式ならtrue
+     */
+    isValidUserId (id) {
+        return /^[A-Za-z0-9_]+$/.test(id)
+    }
+
+    /**
      * NGワードリストを整形（トリム＋小文字化＋重複排除）する
      * @param {string[]} words - 整形するNGワード配列
      * @returns {string[]} 整形済みNGワード配列（小文字）
@@ -116,9 +153,9 @@ export class ConfigManager {
         let ids = CONFIG.DEFAULT_HIDDEN_USER_IDS.slice()
 
         if (Array.isArray(stored)) {
-            ids = this.sanitizeIds(stored)
+            ids = this.sanitizeUserIds(stored)
         } else if (typeof stored === 'string') {
-            ids = this.sanitizeIds(stored.split(/[\s,]+/))
+            ids = this.sanitizeUserIds(stored.split(/[\s,]+/))
         }
 
         this.hiddenUserIds = ids
@@ -192,7 +229,7 @@ export class ConfigManager {
      * @param {string[]} ids - 保存対象ユーザーID
      */
     save (ids) {
-        const sanitized = this.sanitizeIds(ids)
+        const sanitized = this.sanitizeUserIds(ids)
         this.hiddenUserIds = sanitized
         GM_setValues({
             [CONFIG.STORAGE_KEY]: this.hiddenUserIds
@@ -411,7 +448,7 @@ export class ConfigManager {
             throw new Error('hiddenUserIdsの形式が正しくありません')
         }
 
-        const sanitizedIds = this.sanitizeIds(parsed.hiddenUserIds)
+        const sanitizedIds = this.sanitizeUserIds(parsed.hiddenUserIds)
 
         let mediaFilterTargets = CONFIG.MEDIA_FILTER.DEFAULT_TARGET_LISTS.slice()
         if (Array.isArray(parsed.mediaFilterTargets)) {

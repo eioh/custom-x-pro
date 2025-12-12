@@ -90,6 +90,18 @@ describe('ConfigManager', () => {
         expect(result).toEqual(['Alice', 'ALICE', 'Bob', 'bob'])
     })
 
+    it('sanitizeUserIdsで不正な形式を除外する', () => {
+        const manager = new ConfigManager()
+        const result = manager.sanitizeUserIds([
+            'valid_user',
+            'Invalid-Id',
+            'another_valid',
+            ' spaced ',
+            'with.dot'
+        ])
+        expect(result).toEqual(['valid_user', 'another_valid', 'spaced'])
+    })
+
     it('sanitizeWordsで小文字化し重複排除する', () => {
         const manager = new ConfigManager()
         const result = manager.sanitizeWords([' Hello ', 'hello', 'WORLD', 'world '])
@@ -200,6 +212,18 @@ describe('ConfigManager', () => {
         expect(parsed.hiddenPosts).toEqual([{ id: '1998', expiresAt: 123 }])
         expect(parsed.mediaFilterTargets).toEqual(['List1'])
         expect(parsed.textFilterWords).toEqual(['spam', 'egg'])
+    })
+
+    it('parseImportPayloadで不正なユーザーIDを除外する', () => {
+        const manager = new ConfigManager()
+        const text = JSON.stringify({
+            storageKey: CONFIG.STORAGE_KEY,
+            version: CONFIG.EXPORT_VERSION,
+            exportedAt: '2025-01-01T00:00:00.000Z',
+            hiddenUserIds: ['valid_user', 'invalid-id', 'AnotherValid']
+        })
+        const parsed = manager.parseImportPayload(text)
+        expect(parsed.ids).toEqual(['valid_user', 'AnotherValid'])
     })
 
     it('parseImportPayloadでバージョン1でも読み込める', () => {
