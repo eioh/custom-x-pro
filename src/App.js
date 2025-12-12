@@ -37,7 +37,27 @@ export class App {
             if (input === null) {
                 return
             }
-            const additions = this.configManager.sanitizeIds(input.split(/\r?\n/))
+            const rawIds = input.split(/\r?\n/)
+            const validCandidates = []
+            const invalidIds = []
+            rawIds.forEach(id => {
+                const trimmed = (id || '').trim()
+                if (!trimmed) {
+                    return
+                }
+                if (!this.configManager.isValidUserId(trimmed)) {
+                    invalidIds.push(trimmed)
+                    return
+                }
+                validCandidates.push(trimmed)
+            })
+            if (invalidIds.length) {
+                window.alert(
+                    `ユーザーIDは半角英数字とアンダースコアのみ使用できます。\n無効: ${invalidIds.join(', ')}`
+                )
+                return
+            }
+            const additions = this.configManager.sanitizeUserIds(validCandidates)
             if (!additions.length) {
                 window.alert('追加できるIDがありません')
                 return
