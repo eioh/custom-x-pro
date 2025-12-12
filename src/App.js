@@ -235,7 +235,6 @@ export class App {
             ...additions
         ]
         this.configManager.saveMediaFilterTargets(updated)
-        window.alert('メディア対象リストを更新しました')
         this.applyFilters()
     }
 
@@ -278,7 +277,6 @@ export class App {
         this.configManager.saveHiddenPosts(parsed.hiddenPosts)
         this.configManager.saveMediaFilterTargets(parsed.mediaFilterTargets)
         this.configManager.saveTextFilterWords(parsed.textFilterWords)
-        window.alert('非表示リストをインポートしました')
         this.applyFilters()
     }
 
@@ -322,7 +320,6 @@ export class App {
             ...additions
         ]
         this.configManager.saveTextFilterWords(updated)
-        window.alert('NGワードを更新しました')
         this.applyFilters()
     }
 }
