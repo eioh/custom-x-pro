@@ -4,6 +4,9 @@
 - `main` では直接作業しない。日常開発は `develop`、大きな変更は `develop` から `feature/xxx` を切る。
 - 作業前後に必ず現在のブランチを確認する（例: `git branch`）。
 
+## コミュニケーション
+- このリポジトリに関する回答（レビューコメント、仕様確認、設計相談など）は、必ず日本語で行ってください。
+
 ## コミットメッセージ
 - Conventional Commits を使用する。書式: `<type>: <description>`（type は英語、description は日本語）。
 - type: `feat` `fix` `docs` `style` `refactor` `perf` `test` `chore`。
