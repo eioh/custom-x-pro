@@ -17,49 +17,156 @@ export class FilterEngine {
      * @returns {boolean} 非表示にすべき場合はtrue、そうでない場合はfalse
      */
     shouldHide (cell) {
-        const postId = this.extractPostId(cell)
-        if (postId && this.configManager.hasHiddenPostId(postId)) {
-            this.configManager.extendHiddenPostExpiry(postId)
-            return true
-        }
-
-        const userNameLink = cell.querySelector(CONFIG.SELECTORS.USER_NAME)
-        if (!userNameLink) {
-            return false
-        }
-        const href = userNameLink.getAttribute('href') || ''
-        const hrefMatch = href.match(/^https?:\/\/(?:www\.)?x\.com\/([^/?#]+)/i)
-        let userId = null
-        if (hrefMatch) {
-            userId = hrefMatch[1]
-        }
-
-        const targetId = userId || ''
-        if (!targetId) {
-            return false
-        }
-
-        const shouldHide = this.configManager.getIds().some(keyword =>
-            targetId === keyword
-        )
-        return shouldHide
+        const result = this.evaluateCell(cell)
+        return result.hide
     }
 
     /**
-     * ポストIDをセルから抽出する
+     * セルの非表示判定と一致箇所を返す
      * @param {HTMLElement} cell - 対象セル
-     * @returns {string|null} 抽出したポストID（見つからない場合null）
+     * @returns {{ hide: boolean, matches: { parentPost: boolean, quotedPost: boolean, parentUser: boolean, quotedUser: boolean }, ids: { parentPostId: string|null, quotedPostIds: string[], parentUserId: string|null, quotedUserIds: string[] } }}
      */
-    extractPostId (cell) {
-        const postLink = cell.querySelector(CONFIG.POST_FILTER.SELECTOR)
-        if (!postLink) {
-            return null
+    evaluateCell (cell) {
+        const hiddenUserIds = this.configManager.getIds()
+        const { parentPostId, quotedPostIds } = this.extractPostIds(cell)
+        const { parentUserId, quotedUserIds } = this.extractUserIds(cell)
+
+        const matches = {
+            parentPost: false,
+            quotedPost: false,
+            parentUser: false,
+            quotedUser: false
         }
+
+        if (parentPostId && this.configManager.hasHiddenPostId(parentPostId)) {
+            matches.parentPost = true
+            this.configManager.extendHiddenPostExpiry(parentPostId)
+        }
+
+        const matchedQuotedPostId = quotedPostIds.find(id =>
+            this.configManager.hasHiddenPostId(id)
+        )
+        if (matchedQuotedPostId) {
+            matches.quotedPost = true
+            this.configManager.extendHiddenPostExpiry(matchedQuotedPostId)
+        }
+
+        if (parentUserId && hiddenUserIds.includes(parentUserId)) {
+            matches.parentUser = true
+        }
+
+        if (quotedUserIds.some(id => hiddenUserIds.includes(id))) {
+            matches.quotedUser = true
+        }
+
+        return {
+            hide: Object.values(matches).some(Boolean),
+            matches,
+            ids: {
+                parentPostId,
+                quotedPostIds,
+                parentUserId,
+                quotedUserIds
+            }
+        }
+    }
+
+    /**
+     * ポストIDを抽出する（親と引用を判別）
+     * @param {HTMLElement} cell - 対象セル
+     * @returns {{ parentPostId: string|null, quotedPostIds: string[] }} 抽出結果
+     */
+    extractPostIds (cell) {
+        const postLinks = Array.from(
+            cell.querySelectorAll(CONFIG.POST_FILTER.SELECTOR)
+        )
+        const quoteContainers = Array.from(
+            cell.querySelectorAll(CONFIG.POST_FILTER.QUOTE_CONTAINER_SELECTOR)
+        )
+
+        const quotedPostIds = []
+        const quotedSet = new Set()
+
+        postLinks.forEach(link => {
+            // 引用カード(div[role="link"][tabindex="0"])配下なら引用ポスト扱い
+            const isQuoted = quoteContainers.some(container =>
+                typeof container.contains === 'function' &&
+                container.contains(link)
+            )
+            const postId = this.extractPostIdFromLink(link)
+            if (!postId) {
+                return
+            }
+            if (isQuoted) {
+                if (!quotedSet.has(postId)) {
+                    quotedSet.add(postId)
+                    quotedPostIds.push(postId)
+                }
+            }
+        })
+
+        const parentPostId =
+            postLinks
+                .map(link => ({
+                    link,
+                    id: this.extractPostIdFromLink(link)
+                }))
+                .find(item => {
+                    if (!item.id) {
+                        return false
+                    }
+                    // コンテナ外の最初のリンクを親ポストとみなす
+                    const isQuoted = quoteContainers.some(container =>
+                        typeof container.contains === 'function' &&
+                        container.contains(item.link)
+                    )
+                    return !isQuoted
+                })?.id || null
+
+        return { parentPostId, quotedPostIds }
+    }
+
+    /**
+     * ポストIDをリンクから抽出する
+     * @param {HTMLAnchorElement} postLink - ポストリンク要素
+     * @returns {string|null} ポストID
+     */
+    extractPostIdFromLink (postLink) {
         const href = postLink.getAttribute('href') || ''
         const match = href.match(/status\/(\d+)/)
         if (!match) {
             return null
         }
         return match[1]
+    }
+
+    /**
+     * ユーザーIDを抽出する（親と引用を判別）
+     * @param {HTMLElement} cell - 対象セル
+     * @returns {{ parentUserId: string|null, quotedUserIds: string[] }} 抽出結果
+     */
+    extractUserIds (cell) {
+        const userLinks = Array.from(
+            cell.querySelectorAll(CONFIG.SELECTORS.USER_NAME)
+        )
+        const ids = userLinks
+            .map(link => this.extractUserIdFromLink(link))
+            .filter(Boolean)
+        const [parentUserId = null, ...quotedUserIds] = ids
+        return { parentUserId, quotedUserIds }
+    }
+
+    /**
+     * ユーザーIDをリンクから抽出する
+     * @param {HTMLAnchorElement} userLink - ユーザー名リンク
+     * @returns {string|null} ユーザーID
+     */
+    extractUserIdFromLink (userLink) {
+        const href = userLink.getAttribute('href') || ''
+        const hrefMatch = href.match(/^https?:\/\/(?:www\.)?x\.com\/([^/?#]+)/i)
+        if (!hrefMatch) {
+            return null
+        }
+        return hrefMatch[1]
     }
 }

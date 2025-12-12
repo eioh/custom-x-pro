@@ -11,7 +11,8 @@ export const CONFIG = {
         STORAGE_KEY: 'hiddenPosts',
         DEFAULT_ENTRIES: [],
         TTL_MS: 1000 * 60 * 60 * 24 * 30, // 30日
-        SELECTOR: 'a[href*="/status/"][href$="/analytics"]'
+        SELECTOR: 'a[href*="/status/"][href$="/analytics"]',
+        QUOTE_CONTAINER_SELECTOR: 'div[role="link"][tabindex="0"]'
     },
     MEDIA_FILTER: {
         HIDDEN_CLASS_NAME: 'tm-hidden-no-media',
