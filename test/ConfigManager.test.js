@@ -1,16 +1,18 @@
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import { ConfigManager } from '../src/ConfigManager.js';
-import { CONFIG } from '../src/config.js';
+﻿import { describe, it, expect, beforeEach, jest } from "@jest/globals"
+import { ConfigManager } from "../src/ConfigManager.js"
+import { CONFIG } from "../src/config.js"
 
 describe('ConfigManager', () => {
     let storedHiddenIds
     let storedHiddenPosts
     let storedMediaTargets
+    let storedTextWords
 
     beforeEach(() => {
         storedHiddenIds = CONFIG.DEFAULT_HIDDEN_USER_IDS.slice()
         storedHiddenPosts = CONFIG.POST_FILTER.DEFAULT_ENTRIES.slice()
         storedMediaTargets = CONFIG.MEDIA_FILTER.DEFAULT_TARGET_LISTS.slice()
+        storedTextWords = CONFIG.TEXT_FILTER.DEFAULT_WORDS.slice()
 
         global.GM_getValues = jest.fn(defaults => {
             if (Object.prototype.hasOwnProperty.call(defaults, CONFIG.STORAGE_KEY)) {
@@ -38,6 +40,16 @@ describe('ConfigManager', () => {
                     [CONFIG.MEDIA_FILTER.STORAGE_KEY]: storedMediaTargets
                 }
             }
+            if (
+                Object.prototype.hasOwnProperty.call(
+                    defaults,
+                    CONFIG.TEXT_FILTER.STORAGE_KEY
+                )
+            ) {
+                return {
+                    [CONFIG.TEXT_FILTER.STORAGE_KEY]: storedTextWords
+                }
+            }
             return defaults
         })
 
@@ -61,16 +73,30 @@ describe('ConfigManager', () => {
             ) {
                 storedMediaTargets = update[CONFIG.MEDIA_FILTER.STORAGE_KEY]
             }
+            if (
+                Object.prototype.hasOwnProperty.call(
+                    update,
+                    CONFIG.TEXT_FILTER.STORAGE_KEY
+                )
+            ) {
+                storedTextWords = update[CONFIG.TEXT_FILTER.STORAGE_KEY]
+            }
         })
     })
 
-    it('sanitizeIdsでトリムと重複排除を行う', () => {
+    it('sanitizeIdsでトリムと重複排除が行われる', () => {
         const manager = new ConfigManager()
         const result = manager.sanitizeIds(['  Alice ', 'ALICE', '', 'Bob', 'bob ', null])
         expect(result).toEqual(['Alice', 'ALICE', 'Bob', 'bob'])
     })
 
-    it('sanitizePostEntriesで不正値を除去し期限が新しいものを採用する', () => {
+    it('sanitizeWordsで小文字化し重複排除する', () => {
+        const manager = new ConfigManager()
+        const result = manager.sanitizeWords([' Hello ', 'hello', 'WORLD', 'world '])
+        expect(result).toEqual(['hello', 'world'])
+    })
+
+    it('sanitizePostEntriesで有効期限の新しい方を採用する', () => {
         const manager = new ConfigManager()
         const entries = [
             { id: '123', expiresAt: 100 },
@@ -83,23 +109,36 @@ describe('ConfigManager', () => {
         ])
     })
 
-    it('loadで保存済みのユーザーIDとポストIDを読み込む', () => {
+    it('loadで保存済みの値を読み込む', () => {
         storedHiddenIds = ['  Alice ', 'Bob', 'ALICE']
         const now = Date.now()
         storedHiddenPosts = [{ id: '999', expiresAt: now + 1000 }]
+        storedMediaTargets = ['ListX']
+        storedTextWords = ['Spam']
         const manager = new ConfigManager()
         expect(manager.getIds()).toEqual(['Alice', 'Bob', 'ALICE'])
         expect(manager.getHiddenPosts()).toEqual([
             { id: '999', expiresAt: storedHiddenPosts[0].expiresAt }
         ])
+        expect(manager.getMediaFilterTargets()).toEqual(['ListX'])
+        expect(manager.getTextFilterWords()).toEqual(['spam'])
     })
 
-    it('saveでユーザーIDを整形して保存する', () => {
+    it('saveでユーザーIDを保存する', () => {
         const manager = new ConfigManager()
         manager.save(['  Carol ', 'dave', 'CAROL'])
         expect(manager.getIds()).toEqual(['Carol', 'dave', 'CAROL'])
         expect(global.GM_setValues).toHaveBeenCalledWith({
             [CONFIG.STORAGE_KEY]: ['Carol', 'dave', 'CAROL']
+        })
+    })
+
+    it('saveTextFilterWordsでNGワードを小文字で保存する', () => {
+        const manager = new ConfigManager()
+        manager.saveTextFilterWords(['Spam', 'ham'])
+        expect(manager.getTextFilterWords()).toEqual(['spam', 'ham'])
+        expect(global.GM_setValues).toHaveBeenCalledWith({
+            [CONFIG.TEXT_FILTER.STORAGE_KEY]: ['spam', 'ham']
         })
     })
 
@@ -111,7 +150,7 @@ describe('ConfigManager', () => {
         expect(storedHiddenPosts[0].expiresAt).toBe(now + CONFIG.POST_FILTER.TTL_MS)
     })
 
-    it('extendHiddenPostExpiryで既存期限を基準に延長する', () => {
+    it('extendHiddenPostExpiryで期限を延長する', () => {
         const now = Date.now()
         storedHiddenPosts = [{ id: '1998', expiresAt: now + 1000 }]
         const manager = new ConfigManager()
@@ -121,7 +160,7 @@ describe('ConfigManager', () => {
         )
     })
 
-    it('purgeExpiredHiddenPostsで期限切れのポストIDを削除する', () => {
+    it('purgeExpiredHiddenPostsで期限切れを削除する', () => {
         const now = Date.now()
         storedHiddenPosts = [
             { id: 'alive', expiresAt: now + 1000 },
@@ -132,18 +171,20 @@ describe('ConfigManager', () => {
         expect(storedHiddenPosts).toEqual([{ id: 'alive', expiresAt: now + 1000 }])
     })
 
-    it('createExportPayloadでhiddenPostsを含めてエクスポートする', () => {
+    it('createExportPayloadで全リストを含める', () => {
         storedHiddenIds = ['User1']
         storedHiddenPosts = [{ id: '1998', expiresAt: 123 }]
         storedMediaTargets = ['List1']
+        storedTextWords = ['spam']
         const manager = new ConfigManager()
         const payload = manager.createExportPayload()
         expect(payload.content).toContain('"hiddenUserIds"')
         expect(payload.content).toContain('"hiddenPosts"')
         expect(payload.content).toContain('"mediaFilterTargets"')
+        expect(payload.content).toContain('"textFilterWords"')
     })
 
-    it('parseImportPayloadでhiddenPostsを読み取る', () => {
+    it('parseImportPayloadで各リストを整形して返す', () => {
         const manager = new ConfigManager()
         const text = JSON.stringify({
             storageKey: CONFIG.STORAGE_KEY,
@@ -151,15 +192,17 @@ describe('ConfigManager', () => {
             exportedAt: '2025-01-01T00:00:00.000Z',
             hiddenUserIds: [' Alice '],
             hiddenPosts: [{ id: '1998', expiresAt: 123 }],
-            mediaFilterTargets: [' List1 ']
+            mediaFilterTargets: [' List1 '],
+            textFilterWords: [' SPAM ', 'Egg']
         })
         const parsed = manager.parseImportPayload(text)
         expect(parsed.ids).toEqual(['Alice'])
         expect(parsed.hiddenPosts).toEqual([{ id: '1998', expiresAt: 123 }])
         expect(parsed.mediaFilterTargets).toEqual(['List1'])
+        expect(parsed.textFilterWords).toEqual(['spam', 'egg'])
     })
 
-    it('parseImportPayloadで旧バージョン(1)でも受け入れる', () => {
+    it('parseImportPayloadでバージョン1でも読み込める', () => {
         const manager = new ConfigManager()
         const text = JSON.stringify({
             storageKey: CONFIG.STORAGE_KEY,
@@ -170,5 +213,6 @@ describe('ConfigManager', () => {
         const parsed = manager.parseImportPayload(text)
         expect(parsed.ids).toEqual(['Alice'])
         expect(parsed.hiddenPosts).toEqual([])
+        expect(parsed.textFilterWords).toEqual([])
     })
 })

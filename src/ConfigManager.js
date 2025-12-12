@@ -1,13 +1,14 @@
-import { CONFIG } from './config.js';
+import { CONFIG } from './config.js'
 
 /**
- * 設定の読み書きを担当するユーティリティクラス
+ * 設定の読み書きを担うヘルパークラス
  */
 export class ConfigManager {
     constructor () {
         this.hiddenUserIds = CONFIG.DEFAULT_HIDDEN_USER_IDS.slice()
         this.hiddenPosts = CONFIG.POST_FILTER.DEFAULT_ENTRIES.slice()
         this.mediaFilterTargets = CONFIG.MEDIA_FILTER.DEFAULT_TARGET_LISTS.slice()
+        this.textFilterWords = CONFIG.TEXT_FILTER.DEFAULT_WORDS.slice()
         this.load()
         this.purgeExpiredHiddenPosts()
     }
@@ -35,9 +36,31 @@ export class ConfigManager {
     }
 
     /**
-     * ポストIDエントリ配列を整形（不正値除去＋重複解消）する
-     * @param {Array<{ id?: string, expiresAt?: number }>} entries - 整形するエントリ配列
-     * @returns {{ id: string, expiresAt: number }[]} 整形済みエントリ配列
+     * NGワードリストを整形（トリム＋小文字化＋重複排除）する
+     * @param {string[]} words - 整形するNGワード配列
+     * @returns {string[]} 整形済みNGワード配列（小文字）
+     */
+    sanitizeWords (words) {
+        const result = []
+        const seen = new Set()
+        words.forEach(word => {
+            const normalized = (word || '').trim().toLowerCase()
+            if (!normalized) {
+                return
+            }
+            if (seen.has(normalized)) {
+                return
+            }
+            seen.add(normalized)
+            result.push(normalized)
+        })
+        return result
+    }
+
+    /**
+     * ポストIDエントリを整形（最新期限優先で重複排除）
+     * @param {Array<{ id?: string, expiresAt?: number }>} entries - 整形するエントリ
+     * @returns {{ id: string, expiresAt: number }[]} 整形済みエントリ
      */
     sanitizePostEntries (entries) {
         const seen = new Map()
@@ -57,7 +80,7 @@ export class ConfigManager {
     /**
      * ポストIDエントリを正規化する
      * @param {{ id?: string, expiresAt?: number }} entry - 正規化対象
-     * @returns {{ id: string, expiresAt: number } | null} 正規化結果（不正時はnull）
+     * @returns {{ id: string, expiresAt: number } | null} 正規化後のエントリ、無効ならnull
      */
     normalizePostEntry (entry) {
         if (!entry || typeof entry !== 'object') {
@@ -72,16 +95,17 @@ export class ConfigManager {
     }
 
     /**
-     * 設定をすべて読み込む
+     * 保存済みデータをまとめて読み込む
      */
     load () {
         this.loadHiddenUserIds()
         this.loadHiddenPosts()
         this.loadMediaFilterTargets()
+        this.loadTextFilterWords()
     }
 
     /**
-     * TampermonkeyストレージからユーザーIDリストを読み込む
+     * ユーザーIDリストを取得する
      * @returns {string[]} 読み込み済みユーザーIDリスト
      */
     loadHiddenUserIds () {
@@ -102,8 +126,8 @@ export class ConfigManager {
     }
 
     /**
-     * TampermonkeyストレージからポストIDエントリを読み込む
-     * @returns {{ id: string, expiresAt: number }[]} 読み込み済みポストIDエントリ
+     * ポストIDエントリを取得する
+     * @returns {{ id: string, expiresAt: number }[]} 読み込み済みポストエントリ
      */
     loadHiddenPosts () {
         const storedValues = GM_getValues({
@@ -121,8 +145,8 @@ export class ConfigManager {
     }
 
     /**
-     * Tampermonkeyストレージからメディアなしフィルタ対象リストを読み込む
-     * @returns {string[]} 読み込み済みリスト
+     * メディアフィルター対象リスト名を取得する
+     * @returns {string[]} 読み込み済みリスト名配列
      */
     loadMediaFilterTargets () {
         const storedValues = GM_getValues({
@@ -143,8 +167,29 @@ export class ConfigManager {
     }
 
     /**
+     * NGワードを取得する
+     * @returns {string[]} 読み込み済みNGワード配列（小文字）
+     */
+    loadTextFilterWords () {
+        const storedValues = GM_getValues({
+            [CONFIG.TEXT_FILTER.STORAGE_KEY]: CONFIG.TEXT_FILTER.DEFAULT_WORDS
+        })
+        const stored = storedValues?.[CONFIG.TEXT_FILTER.STORAGE_KEY]
+        let words = CONFIG.TEXT_FILTER.DEFAULT_WORDS.slice()
+
+        if (Array.isArray(stored)) {
+            words = this.sanitizeWords(stored)
+        } else if (typeof stored === 'string') {
+            words = this.sanitizeWords(stored.split(/[\r\n,]+/))
+        }
+
+        this.textFilterWords = words
+        return this.textFilterWords
+    }
+
+    /**
      * ユーザーIDリストを保存する
-     * @param {string[]} ids - 保存するユーザーIDリスト
+     * @param {string[]} ids - 保存対象ユーザーID
      */
     save (ids) {
         const sanitized = this.sanitizeIds(ids)
@@ -156,8 +201,8 @@ export class ConfigManager {
     }
 
     /**
-     * ポストIDエントリ一覧を保存する
-     * @param {{ id: string, expiresAt: number }[]} entries - 保存するエントリ一覧
+     * ポストIDエントリを保存する
+     * @param {{ id: string, expiresAt: number }[]} entries - 保存対象エントリ
      */
     saveHiddenPosts (entries) {
         const sanitized = this.sanitizePostEntries(entries)
@@ -169,8 +214,8 @@ export class ConfigManager {
     }
 
     /**
-     * メディアなしフィルタ対象リストを保存する
-     * @param {string[]} lists - 保存するリスト名配列
+     * メディアフィルター対象リスト名を保存する
+     * @param {string[]} lists - 保存対象リスト名
      */
     saveMediaFilterTargets (lists) {
         const sanitized = this.sanitizeIds(lists)
@@ -182,7 +227,20 @@ export class ConfigManager {
     }
 
     /**
-     * 非表示ユーザーIDを取得する
+     * NGワードを保存する
+     * @param {string[]} words - 保存対象ワード
+     */
+    saveTextFilterWords (words) {
+        const sanitized = this.sanitizeWords(words)
+        this.textFilterWords = sanitized
+        GM_setValues({
+            [CONFIG.TEXT_FILTER.STORAGE_KEY]: this.textFilterWords
+        })
+        console.log('textFilterWords 更新:', this.textFilterWords)
+    }
+
+    /**
+     * ユーザーIDリストを取得する
      * @returns {string[]} ユーザーIDリスト
      */
     getIds () {
@@ -190,25 +248,33 @@ export class ConfigManager {
     }
 
     /**
-     * 非表示ポストIDエントリを取得する
-     * @returns {{ id: string, expiresAt: number }[]} ポストIDエントリ一覧
+     * ポストエントリを取得する
+     * @returns {{ id: string, expiresAt: number }[]} ポストエントリ
      */
     getHiddenPosts () {
         return this.hiddenPosts
     }
 
     /**
-     * メディアなしフィルタ対象リストを取得する
-     * @returns {string[]} 対象リスト名一覧
+     * メディアフィルター対象リスト名を取得する
+     * @returns {string[]} 対象リスト名
      */
     getMediaFilterTargets () {
         return this.mediaFilterTargets
     }
 
     /**
-     * ポストIDを追加または更新し、期限を設定する
-     * @param {string} postId - 追加するポストID
-     * @param {number} [now=Date.now()] - 現在時刻（テスト用）
+     * NGワード一覧を取得する
+     * @returns {string[]} NGワード配列（小文字）
+     */
+    getTextFilterWords () {
+        return this.textFilterWords
+    }
+
+    /**
+     * ポストIDを追加・更新する（TTL延長）
+     * @param {string} postId - 保存対象ポストID
+     * @param {number} [now=Date.now()] - 現在時刻
      */
     upsertHiddenPostId (postId, now = Date.now()) {
         const normalizedId = (postId || '').trim()
@@ -228,9 +294,9 @@ export class ConfigManager {
     }
 
     /**
-     * ポストIDの期限を延長する（存在する場合のみ）
+     * ポストIDの期限を延長する
      * @param {string} postId - 対象ポストID
-     * @param {number} [now=Date.now()] - 現在時刻（テスト用）
+     * @param {number} [now=Date.now()] - 現在時刻
      */
     extendHiddenPostExpiry (postId, now = Date.now()) {
         const target = this.hiddenPosts.find(entry => entry.id === postId)
@@ -246,9 +312,9 @@ export class ConfigManager {
     }
 
     /**
-     * ポストIDが非表示対象に含まれるか判定する
-     * @param {string} postId - 判定対象ポストID
-     * @returns {boolean} 含まれる場合true
+     * ポストIDが非表示対象かどうかを判定する
+     * @param {string} postId - 判定するポストID
+     * @returns {boolean} 対象ならtrue
      */
     hasHiddenPostId (postId) {
         if (!postId) {
@@ -258,7 +324,7 @@ export class ConfigManager {
     }
 
     /**
-     * 期限切れのポストIDエントリを削除する
+     * 期限切れのポストエントリを除去する
      * @param {number} [now=Date.now()] - 現在時刻
      */
     purgeExpiredHiddenPosts (now = Date.now()) {
@@ -269,7 +335,7 @@ export class ConfigManager {
     }
 
     /**
-     * エントリが期限切れか判定する
+     * エントリが期限切れかを判定する
      * @param {{ expiresAt: number }} entry - 判定対象
      * @param {number} now - 現在時刻
      * @returns {boolean} 期限切れならtrue
@@ -279,8 +345,8 @@ export class ConfigManager {
     }
 
     /**
-     * エクスポート用のJSONペイロードを作成する
-     * @returns {{ fileName: string, mimeType: string, content: string }} エクスポートペイロード
+     * エクスポート用JSON文字列を生成する
+     * @returns {{ fileName: string, mimeType: string, content: string }} エクスポートデータ
      */
     createExportPayload () {
         const now = new Date().toISOString()
@@ -291,7 +357,8 @@ export class ConfigManager {
             exportedAt: now,
             hiddenUserIds: this.getIds(),
             hiddenPosts: this.getHiddenPosts(),
-            mediaFilterTargets: this.getMediaFilterTargets()
+            mediaFilterTargets: this.getMediaFilterTargets(),
+            textFilterWords: this.getTextFilterWords()
         }
         return {
             fileName: `hidden-entries-${sanitizedNow}.json`,
@@ -301,10 +368,10 @@ export class ConfigManager {
     }
 
     /**
-     * エクスポートJSONテキストをパースしてバリデーションする
-     * @param {string} jsonText - パース対象JSON文字列
-     * @returns {{ ids: string[], hiddenPosts: { id: string, expiresAt: number }[], mediaFilterTargets: string[], meta: { exportedAt: string, version: number } }}
-     * バリデーション済みデータ
+     * エクスポートJSON文字列を受け取りバリデーションを行う
+     * @param {string} jsonText - 取り込むJSON文字列
+     * @returns {{ ids: string[], hiddenPosts: { id: string, expiresAt: number }[], mediaFilterTargets: string[], textFilterWords: string[], meta: { exportedAt: string, version: number } }}
+     * パース済みデータ
      */
     parseImportPayload (jsonText) {
         if (typeof jsonText !== 'string') {
@@ -315,7 +382,7 @@ export class ConfigManager {
         try {
             parsed = JSON.parse(jsonText)
         } catch (error) {
-            throw new Error('JSONのパースに失敗しました')
+            throw new Error('JSONの読み込みに失敗しました')
         }
 
         if (!parsed || typeof parsed !== 'object') {
@@ -356,10 +423,19 @@ export class ConfigManager {
             hiddenPosts = this.sanitizePostEntries(parsed.hiddenPosts)
         }
 
+        let textFilterWords = CONFIG.TEXT_FILTER.DEFAULT_WORDS.slice()
+        if (Array.isArray(parsed.textFilterWords)) {
+            textFilterWords = this.sanitizeWords(parsed.textFilterWords)
+        } else if (parsed.version === 1 && Array.isArray(parsed.ngWords)) {
+            // 将来の後方互換余地（予約）
+            textFilterWords = this.sanitizeWords(parsed.ngWords)
+        }
+
         return {
             ids: sanitizedIds,
             hiddenPosts,
             mediaFilterTargets,
+            textFilterWords,
             meta: {
                 exportedAt: parsed.exportedAt,
                 version: parsed.version

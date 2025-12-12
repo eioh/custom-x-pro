@@ -1,10 +1,10 @@
-import { CONFIG } from './config.js';
-import { ConfigManager } from './ConfigManager.js';
-import { FilterEngine } from './FilterEngine.js';
-import { ColumnMediaFilter } from './ColumnMediaFilter.js';
+﻿import { CONFIG } from "./config.js"
+import { ConfigManager } from "./ConfigManager.js"
+import { FilterEngine } from "./FilterEngine.js"
+import { ColumnMediaFilter } from "./ColumnMediaFilter.js"
 
 /**
- * 全体のライフサイクルを管理するアプリケーションクラス
+ * アプリケーション全体を管理するオーケストレーションクラス
  */
 export class App {
     constructor () {
@@ -26,12 +26,12 @@ export class App {
     }
 
     /**
-     * Tampermonkeyメニューを登録する
+     * Tampermonkeyメニューに操作項目を登録する
      */
     registerMenu () {
         GM_registerMenuCommand('ユーザーIDを追加して非表示', () => {
             const input = window.prompt(
-                '非表示にしたいユーザーIDを1行ずつ入力してください',
+                '非表示にするユーザーIDを入力（改行区切り）してください',
                 ''
             )
             if (input === null) {
@@ -39,7 +39,7 @@ export class App {
             }
             const additions = this.configManager.sanitizeIds(input.split(/\r?\n/))
             if (!additions.length) {
-                window.alert('追加するIDがありません')
+                window.alert('追加できるIDがありません')
                 return
             }
             this.configManager.save([...this.configManager.getIds(), ...additions])
@@ -48,7 +48,7 @@ export class App {
 
         GM_registerMenuCommand('ポストURLを追加して非表示', () => {
             const input = window.prompt(
-                '非表示にしたいポストのURLを1行ずつ入力してください（例: https://x.com/example_user/status/1234567890123456789?s=20）',
+                '非表示にするポストURLを入力してください。例: https://x.com/example_user/status/1234567890123456789?s=20',
                 ''
             )
             if (input === null) {
@@ -56,29 +56,33 @@ export class App {
             }
             const postIds = this.extractPostIdsFromText(input)
             if (!postIds.length) {
-                window.alert('ポストURLからIDを取得できませんでした')
+                window.alert('ポストURLからIDを抽出できませんでした')
                 return
             }
             postIds.forEach(id => this.configManager.upsertHiddenPostId(id))
             this.applyFilters()
         })
 
-        GM_registerMenuCommand('非表示リストを書き出し', () => {
+        GM_registerMenuCommand('非表示リストをエクスポート', () => {
             const payload = this.configManager.createExportPayload()
             this.downloadExport(payload)
         })
 
-        GM_registerMenuCommand('非表示リストを読み込み', () => {
+        GM_registerMenuCommand('非表示リストをインポート', () => {
             this.promptImportFile()
         })
 
-        GM_registerMenuCommand('メディアなしフィルタ対象リストを追加', () => {
+        GM_registerMenuCommand('メディアのみカラム対象リストを追加', () => {
             this.promptAddMediaFilterList()
+        })
+
+        GM_registerMenuCommand('NGワードを追加して非表示', () => {
+            this.promptAddTextFilterWords()
         })
     }
 
     /**
-     * 非表示用CSSを挿入する
+     * 非表示用のスタイルを注入する
      */
     ensureHiddenStyle () {
         if (document.getElementById(CONFIG.HIDDEN_STYLE_ID)) {
@@ -98,7 +102,7 @@ export class App {
     }
 
     /**
-     * 登録済みフィルタを適用する
+     * 画面上のセルにフィルターを適用する
      */
     applyFilters () {
         this.filterCells()
@@ -106,7 +110,7 @@ export class App {
     }
 
     /**
-     * タイムラインのセルにフィルタを適用する
+     * タイムライン上のセルへ非表示判定を適用する
      */
     filterCells () {
         const cells = Array.from(
@@ -119,7 +123,7 @@ export class App {
     }
 
     /**
-     * MutationObserverでDOM変化を監視する
+     * DOM変更を監視し再フィルタリングする
      */
     startObserver () {
         this.observer = new MutationObserver(() => this.applyFilters())
@@ -131,12 +135,12 @@ export class App {
     }
 
     /**
-     * エクスポート用JSONペイロードをダウンロードする
-     * @param {{ fileName: string, mimeType: string, content: string }} payload - ダウンロード対象
+     * エクスポートファイルをダウンロードする
+     * @param {{ fileName: string, mimeType: string, content: string }} payload - ダウンロードデータ
      */
     downloadExport (payload) {
         if (!payload || !payload.content) {
-            console.warn('エクスポートペイロードが空です')
+            console.warn('エクスポートデータが空です')
             return
         }
 
@@ -170,7 +174,7 @@ export class App {
     }
 
     /**
-     * インポート用ファイル選択ダイアログを表示する
+     * ファイル選択ダイアログを開く
      */
     promptImportFile () {
         const input = document.createElement('input')
@@ -191,11 +195,11 @@ export class App {
     }
 
     /**
-     * メディアなしフィルタ対象リストを追加する
+     * メディア専用カラム対象リスト名を追加する
      */
     promptAddMediaFilterList () {
         const input = window.prompt(
-            'メディアなしフィルタ対象に追加したいリスト名を1行ずつ入力してください',
+            'メディアのみカラムで対象とするリスト名を入力してください（改行区切り）',
             ''
         )
         if (input === null) {
@@ -203,7 +207,7 @@ export class App {
         }
         const additions = this.configManager.sanitizeIds(input.split(/\r?\n/))
         if (!additions.length) {
-            window.alert('追加するリスト名がありません')
+            window.alert('追加できるリスト名がありません')
             return
         }
         const updated = [
@@ -211,13 +215,13 @@ export class App {
             ...additions
         ]
         this.configManager.saveMediaFilterTargets(updated)
-        window.alert('メディアなしフィルタ対象リストを更新しました')
+        window.alert('メディア対象リストを更新しました')
         this.applyFilters()
     }
 
     /**
-     * インポート用ファイルを読み取る
-     * @param {File} file - 選択されたファイル
+     * インポートするファイルを読み込む
+     * @param {File} file - 取り込むファイル
      */
     readImportFile (file) {
         const reader = new FileReader()
@@ -232,8 +236,8 @@ export class App {
     }
 
     /**
-     * インポートされたJSONテキストを処理する
-     * @param {string} text - インポートされたJSON文字列
+     * インポートテキストをパースする
+     * @param {string} text - 取り込みJSON文字列
      */
     processImportedText (text) {
         let parsed = null
@@ -244,7 +248,7 @@ export class App {
             return
         }
 
-        const confirmMessage = `非表示リストを上書きしますか？\nエクスポート日時: ${parsed.meta.exportedAt}\nユーザーID: ${parsed.ids.length}件\nポストID: ${parsed.hiddenPosts.length}件\nメディアなし対象リスト: ${parsed.mediaFilterTargets.length}件`
+        const confirmMessage = `非表示リストを上書きしますか？\nエクスポート日時: ${parsed.meta.exportedAt}\nユーザーID: ${parsed.ids.length}件\nポストID: ${parsed.hiddenPosts.length}件\nメディアなし対象リスト: ${parsed.mediaFilterTargets.length}件\nNGワード: ${parsed.textFilterWords.length}件`
         const shouldOverwrite = window.confirm(confirmMessage)
         if (!shouldOverwrite) {
             return
@@ -253,14 +257,15 @@ export class App {
         this.configManager.save(parsed.ids)
         this.configManager.saveHiddenPosts(parsed.hiddenPosts)
         this.configManager.saveMediaFilterTargets(parsed.mediaFilterTargets)
+        this.configManager.saveTextFilterWords(parsed.textFilterWords)
         window.alert('非表示リストをインポートしました')
         this.applyFilters()
     }
 
     /**
      * テキストからポストIDを抽出する
-     * @param {string} text - URLが含まれるテキスト
-     * @returns {string[]} 抽出したポストID一覧
+     * @param {string} text - URLを含むテキスト
+     * @returns {string[]} 抽出したポストID配列
      */
     extractPostIdsFromText (text) {
         if (typeof text !== 'string') {
@@ -274,5 +279,30 @@ export class App {
             match = regex.exec(text)
         }
         return this.configManager.sanitizeIds(ids)
+    }
+
+    /**
+     * NGワードを追加する
+     */
+    promptAddTextFilterWords () {
+        const input = window.prompt(
+            '非表示にしたいNGワードを入力してください（改行区切り、大小区別なし）',
+            ''
+        )
+        if (input === null) {
+            return
+        }
+        const additions = this.configManager.sanitizeWords(input.split(/\r?\n/))
+        if (!additions.length) {
+            window.alert('追加できるNGワードがありません')
+            return
+        }
+        const updated = [
+            ...this.configManager.getTextFilterWords(),
+            ...additions
+        ]
+        this.configManager.saveTextFilterWords(updated)
+        window.alert('NGワードを更新しました')
+        this.applyFilters()
     }
 }
