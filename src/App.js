@@ -37,41 +37,10 @@ export class App {
       if (input === null) {
         return
       }
-      const rawIds = input.split(/\r?\n/)
-      const validCandidates = []
-      const invalidIds = []
-      rawIds.forEach(id => {
-        const trimmed = (id || '').trim()
-        if (!trimmed) {
-          return
-        }
-        if (!this.configManager.isValidUserId(trimmed)) {
-          invalidIds.push(trimmed)
-          return
-        }
-        validCandidates.push(trimmed)
-      })
-      if (invalidIds.length) {
-        window.alert(
-          `ユーザーIDは半角英数字とアンダースコアのみ使用できます。\n無効: ${invalidIds.join(
-            ', '
-          )}`
-        )
-        return
+      const result = this.addHiddenUserIdsFromInput(input)
+      if (result?.message) {
+        window.alert(result.message)
       }
-      const additions = this.configManager.sanitizeUserIds(validCandidates)
-      if (!additions.length) {
-        window.alert('追加できるIDがありません')
-        return
-      }
-      const currentIds = this.configManager.getIds()
-      const uniqueAdditions = additions.filter(id => !currentIds.includes(id))
-      if (!uniqueAdditions.length) {
-        window.alert('新しく追加できるユーザーIDがありません')
-        return
-      }
-      this.configManager.save([...currentIds, ...uniqueAdditions])
-      this.applyFilters()
     })
 
     GM_registerMenuCommand('ポストURLを追加して非表示', () => {
@@ -82,13 +51,10 @@ export class App {
       if (input === null) {
         return
       }
-      const postIds = this.extractPostIdsFromText(input)
-      if (!postIds.length) {
-        window.alert('ポストURLからIDを抽出できませんでした')
-        return
+      const result = this.addHiddenPostIdsFromInput(input)
+      if (result?.message) {
+        window.alert(result.message)
       }
-      postIds.forEach(id => this.configManager.upsertHiddenPostId(id))
-      this.applyFilters()
     })
 
     GM_registerMenuCommand('非表示リストをエクスポート', () => {
@@ -101,12 +67,140 @@ export class App {
     })
 
     GM_registerMenuCommand('メディアのみカラム対象リストを追加', () => {
-      this.promptAddMediaFilterList()
+      const input = window.prompt(
+        'メディアのみカラムで対象とするリスト名を入力してください（改行区切り）',
+        ''
+      )
+      if (input === null) {
+        return
+      }
+      const result = this.addMediaFilterTargetsFromInput(input)
+      if (result?.message) {
+        window.alert(result.message)
+      }
     })
 
     GM_registerMenuCommand('NGワードを追加して非表示', () => {
-      this.promptAddTextFilterWords()
+      const input = window.prompt(
+        '非表示にしたいNGワードを入力してください（改行区切り、大小区別なし）',
+        ''
+      )
+      if (input === null) {
+        return
+      }
+      const result = this.addTextFilterWordsFromInput(input)
+      if (result?.message) {
+        window.alert(result.message)
+      }
     })
+  }
+
+  /**
+   * ユーザーID追加メニューの入力を処理する
+   * @param {string} inputText - プロンプトで入力された文字列
+   * @returns {{ message?: string }} アラート表示用メッセージ
+   */
+  addHiddenUserIdsFromInput (inputText) {
+    const rawIds = (inputText || '').split(/\r?\n/)
+    const validCandidates = []
+    const invalidIds = []
+    rawIds.forEach(id => {
+      const trimmed = (id || '').trim()
+      if (!trimmed) {
+        return
+      }
+      if (!this.configManager.isValidUserId(trimmed)) {
+        invalidIds.push(trimmed)
+        return
+      }
+      validCandidates.push(trimmed)
+    })
+    if (invalidIds.length) {
+      return {
+        message: `ユーザーIDは半角英数字とアンダースコアのみ使用できます。\n無効: ${invalidIds.join(
+          ', '
+        )}`
+      }
+    }
+    const additions = this.configManager.sanitizeUserIds(validCandidates)
+    if (!additions.length) {
+      return { message: '追加できるIDがありません' }
+    }
+    const currentIds = this.configManager.getIds()
+    const uniqueAdditions = additions.filter(id => !currentIds.includes(id))
+    if (!uniqueAdditions.length) {
+      return { message: '新しく追加できるユーザーIDがありません' }
+    }
+    this.configManager.save([...currentIds, ...uniqueAdditions])
+    this.applyFilters()
+    return {}
+  }
+
+  /**
+   * ポストURL追加メニューの入力を処理する
+   * @param {string} inputText - プロンプトで入力された文字列
+   * @returns {{ message?: string }} アラート表示用メッセージ
+   */
+  addHiddenPostIdsFromInput (inputText) {
+    const postIds = this.extractPostIdsFromText(inputText)
+    if (!postIds.length) {
+      return { message: 'ポストURLからIDを抽出できませんでした' }
+    }
+    postIds.forEach(id => this.configManager.upsertHiddenPostId(id))
+    this.applyFilters()
+    return {}
+  }
+
+  /**
+   * メディア専用カラム対象リスト入力を処理する
+   * @param {string} inputText - プロンプトで入力された文字列
+   * @returns {{ message?: string }} アラート表示用メッセージ
+   */
+  addMediaFilterTargetsFromInput (inputText) {
+    const additions = this.configManager.sanitizeIds(
+      (inputText || '').split(/\r?\n/)
+    )
+    if (!additions.length) {
+      return { message: '追加できるリスト名がありません' }
+    }
+    const updated = [
+      ...this.configManager.getMediaFilterTargets(),
+      ...additions
+    ]
+    this.configManager.saveMediaFilterTargets(updated)
+    this.applyFilters()
+    return {}
+  }
+
+  /**
+   * NGワード追加メニューの入力を処理する
+   * @param {string} inputText - プロンプトで入力された文字列
+   * @returns {{ message?: string }} アラート表示用メッセージ
+   */
+  addTextFilterWordsFromInput (inputText) {
+    const additions = this.configManager.sanitizeWords(
+      (inputText || '').split(/\r?\n/)
+    )
+    if (!additions.length) {
+      return { message: '追加できるNGワードがありません' }
+    }
+    const currentWords = this.configManager.getTextFilterWords()
+    const filteredAdditions = []
+    additions.forEach(word => {
+      const isCovered =
+        currentWords.some(existing => word.includes(existing)) ||
+        filteredAdditions.some(existing => word.includes(existing))
+      if (!isCovered) {
+        filteredAdditions.push(word)
+      }
+    })
+    if (!filteredAdditions.length) {
+      return { message: '追加できるNGワードがありません' }
+    }
+    const updated = [...currentWords, ...filteredAdditions]
+    this.configManager.saveTextFilterWords(updated)
+    this.applyFilters()
+    return {}
   }
 
   /**
@@ -223,30 +317,6 @@ export class App {
   }
 
   /**
-   * メディア専用カラム対象リスト名を追加する
-   */
-  promptAddMediaFilterList () {
-    const input = window.prompt(
-      'メディアのみカラムで対象とするリスト名を入力してください（改行区切り）',
-      ''
-    )
-    if (input === null) {
-      return
-    }
-    const additions = this.configManager.sanitizeIds(input.split(/\r?\n/))
-    if (!additions.length) {
-      window.alert('追加できるリスト名がありません')
-      return
-    }
-    const updated = [
-      ...this.configManager.getMediaFilterTargets(),
-      ...additions
-    ]
-    this.configManager.saveMediaFilterTargets(updated)
-    this.applyFilters()
-  }
-
-  /**
    * インポートするファイルを読み込む
    * @param {File} file - 取り込むファイル
    */
@@ -308,24 +378,4 @@ export class App {
     return this.configManager.sanitizeIds(ids)
   }
 
-  /**
-   * NGワードを追加する
-   */
-  promptAddTextFilterWords () {
-    const input = window.prompt(
-      '非表示にしたいNGワードを入力してください（改行区切り、大小区別なし）',
-      ''
-    )
-    if (input === null) {
-      return
-    }
-    const additions = this.configManager.sanitizeWords(input.split(/\r?\n/))
-    if (!additions.length) {
-      window.alert('追加できるNGワードがありません')
-      return
-    }
-    const updated = [...this.configManager.getTextFilterWords(), ...additions]
-    this.configManager.saveTextFilterWords(updated)
-    this.applyFilters()
-  }
 }
