@@ -29,7 +29,7 @@ export class App {
    * Tampermonkeyメニューに操作項目を登録する
    */
   registerMenu () {
-    GM_registerMenuCommand('ユーザーIDを追加して非表示', () => {
+    GM_registerMenuCommand('👤 ユーザーIDを追加して非表示', () => {
       const input = window.prompt(
         '非表示にするユーザーIDを入力（改行区切り）してください',
         ''
@@ -43,7 +43,7 @@ export class App {
       }
     })
 
-    GM_registerMenuCommand('ポストURLを追加して非表示', () => {
+    GM_registerMenuCommand('🔗 ポストURLを追加して非表示', () => {
       const input = window.prompt(
         '非表示にするポストURLを入力してください。例: https://x.com/example_user/status/1234567890123456789?s=20',
         ''
@@ -57,16 +57,21 @@ export class App {
       }
     })
 
-    GM_registerMenuCommand('非表示リストをエクスポート', () => {
-      const payload = this.configManager.createExportPayload()
-      this.downloadExport(payload)
+    GM_registerMenuCommand('📝 NGワードを追加して非表示', () => {
+      const input = window.prompt(
+        '非表示にしたいNGワードを入力してください（改行区切り、大小区別なし）',
+        ''
+      )
+      if (input === null) {
+        return
+      }
+      const result = this.addTextFilterWordsFromInput(input)
+      if (result?.message) {
+        window.alert(result.message)
+      }
     })
 
-    GM_registerMenuCommand('非表示リストをインポート', () => {
-      this.promptImportFile()
-    })
-
-    GM_registerMenuCommand('メディアのみカラム対象リストを追加', () => {
+    GM_registerMenuCommand('🖼️ メディアのみカラム対象リストを追加', () => {
       const input = window.prompt(
         'メディアのみカラムで対象とするリスト名を入力してください（改行区切り）',
         ''
@@ -80,18 +85,13 @@ export class App {
       }
     })
 
-    GM_registerMenuCommand('NGワードを追加して非表示', () => {
-      const input = window.prompt(
-        '非表示にしたいNGワードを入力してください（改行区切り、大小区別なし）',
-        ''
-      )
-      if (input === null) {
-        return
-      }
-      const result = this.addTextFilterWordsFromInput(input)
-      if (result?.message) {
-        window.alert(result.message)
-      }
+    GM_registerMenuCommand('📥 非表示リストをインポート', () => {
+      this.promptImportFile()
+    })
+
+    GM_registerMenuCommand('📤 非表示リストをエクスポート', () => {
+      const payload = this.configManager.createExportPayload()
+      this.downloadExport(payload)
     })
   }
 
