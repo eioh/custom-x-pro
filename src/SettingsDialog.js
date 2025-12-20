@@ -1,4 +1,5 @@
 import dialogHtml from './templates/settings-dialog.html'
+import dialogCss from './styles/settings-dialog.css'
 
 /**
  * 設定ダイアログの表示と操作を管理するクラス。
@@ -156,44 +157,7 @@ export class SettingsDialog {
     }
     const style = document.createElement('style')
     style.id = styleId
-    style.textContent = `
-      .cxp-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); display: none; align-items: center; justify-content: center; z-index: 9999; }
-      .cxp-dialog { width: 720px; max-width: 92vw; background: #2f2f32; color: #f6f7f9; border-radius: 14px; box-shadow: 0 12px 32px rgba(0,0,0,0.55); overflow: hidden; font-family: 'Segoe UI', Arial, sans-serif; position: relative; }
-      .cxp-header { padding: 14px 18px; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,0.08); background: linear-gradient(135deg, #3b3b3e, #2c2c2e); }
-      .cxp-body { display: grid; grid-template-columns: 160px 1fr; min-height: 360px; max-height: 520px; }
-      .cxp-tabs { background: #3a3a3d; padding: 8px; display: flex; flex-direction: column; gap: 8px; border-right: 1px solid rgba(255,255,255,0.08); }
-      .cxp-tab-button { background: #4a4a4d; color: #f6f7f9; border: none; padding: 12px; border-radius: 8px; text-align: left; font-weight: 600; cursor: pointer; transition: background 0.2s ease; }
-      .cxp-tab-button:hover { background: #5a5a5d; }
-      .cxp-tab-button.active { background: #4a90e2; color: #fff; }
-      .cxp-main { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
-      .cxp-status { min-height: 20px; color: #ff6b6b; font-size: 13px; }
-      .cxp-content { background: #242426; border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 12px; flex: 1; overflow: hidden; }
-      .cxp-tab-panel { display: none; height: 100%; }
-      .cxp-tab-panel.active { display: flex; flex-direction: column; gap: 12px; height: 100%; }
-      .cxp-section-title { font-weight: 700; margin-bottom: 4px; }
-      .cxp-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-      .cxp-input { flex: 1; min-width: 240px; padding: 10px 12px; border-radius: 18px; border: 1px solid rgba(255,255,255,0.15); background: #1e1e20; color: #fff; }
-      .cxp-button { padding: 9px 14px; border-radius: 16px; border: none; cursor: pointer; font-weight: 700; }
-      .cxp-primary { background: #4a90e2; color: #fff; }
-      .cxp-danger { background: #e74c3c; color: #fff; }
-      .cxp-secondary { background: #4a4a4d; color: #fff; }
-      .cxp-row-between { justify-content: space-between; align-items: center; }
-      .cxp-row-start { justify-content: flex-start; align-items: center; gap: 12px; }
-      .cxp-row-right { justify-content: flex-end; align-items: center; gap: 8px; flex-wrap: wrap; }
-      .cxp-row-tight { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-      .cxp-column { display: flex; flex-direction: column; gap: 8px; }
-      .cxp-list { border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 8px; background: #1f1f21; flex: 1; min-height: 160px; max-height: 280px; overflow-y: auto; }
-      .cxp-list-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.05); }
-      .cxp-list-item:last-child { border-bottom: none; }
-      .cxp-label { color: #d1d5db; word-break: break-all; }
-      .cxp-empty { color: #888; padding: 12px; text-align: center; }
-      .cxp-footer { padding: 10px 14px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; justify-content: flex-end; background: #2f2f32; }
-      .cxp-toast { position: absolute; bottom: 14px; right: 20px; background: rgba(74,144,226,0.95); color: #fff; padding: 10px 14px; border-radius: 12px; opacity: 0; pointer-events: none; transition: opacity 0.2s ease; box-shadow: 0 6px 16px rgba(0,0,0,0.25); }
-      .cxp-toast.show { opacity: 1; }
-      .cxp-file-label { min-width: 210px; color: #d1d5db; }
-      .cxp-file-name { color: #d1d5db; font-size: 13px; min-width: 140px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .cxp-scroll { overflow-y: auto; }
-    `
+    style.textContent = dialogCss
     document.head.appendChild(style)
   }
 
@@ -429,7 +393,9 @@ export class SettingsDialog {
       return
     }
     if (!this.configManager.isValidUserId(value)) {
-      this.showError('ユーザーIDは半角英数字とアンダースコアのみで入力してください')
+      this.showError(
+        'ユーザーIDは半角英数字とアンダースコアのみで入力してください'
+      )
       return
     }
     const current = this.configManager.getIds()

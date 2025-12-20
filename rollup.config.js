@@ -1,8 +1,8 @@
-function htmlAsString () {
+function textAsString () {
   return {
-    name: 'html-as-string',
+    name: 'text-as-string',
     transform (code, id) {
-      if (!id.endsWith('.html')) {
+      if (!id.endsWith('.html') && !id.endsWith('.css')) {
         return null
       }
       return {
@@ -15,7 +15,7 @@ function htmlAsString () {
 
 export default {
   input: 'src/index.js',
-  plugins: [htmlAsString()],
+  plugins: [textAsString()],
   output: {
     file: 'dist/main.js',
     format: 'iife',
