@@ -1,5 +1,21 @@
+function textAsString () {
+  return {
+    name: 'text-as-string',
+    transform (code, id) {
+      if (!id.endsWith('.html') && !id.endsWith('.css')) {
+        return null
+      }
+      return {
+        code: `export default ${JSON.stringify(code)};`,
+        map: { mappings: '' }
+      }
+    }
+  }
+}
+
 export default {
   input: 'src/index.js',
+  plugins: [textAsString()],
   output: {
     file: 'dist/main.js',
     format: 'iife',

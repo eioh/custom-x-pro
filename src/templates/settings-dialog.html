@@ -1,0 +1,204 @@
+<div class="cxp-overlay">
+  <div class="cxp-dialog" role="dialog" aria-modal="true">
+    <div class="cxp-header">設定</div>
+    <div class="cxp-body">
+      <div class="cxp-tabs" role="tablist">
+        <button
+          class="cxp-tab-button"
+          data-tab="users"
+          role="tab"
+          aria-selected="true"
+          aria-controls="panel-users"
+        >
+          ユーザーID
+        </button>
+        <button
+          class="cxp-tab-button"
+          data-tab="posts"
+          role="tab"
+          aria-selected="false"
+          aria-controls="panel-posts"
+        >
+          ポストID
+        </button>
+        <button
+          class="cxp-tab-button"
+          data-tab="keywords"
+          role="tab"
+          aria-selected="false"
+          aria-controls="panel-keywords"
+        >
+          NGワード
+        </button>
+        <button
+          class="cxp-tab-button"
+          data-tab="settings"
+          role="tab"
+          aria-selected="false"
+          aria-controls="panel-settings"
+        >
+          設定
+        </button>
+      </div>
+      <div class="cxp-main">
+        <div class="cxp-status" data-role="status"></div>
+        <div class="cxp-content">
+          <div
+            class="cxp-tab-panel"
+            data-panel="users"
+            role="tabpanel"
+            id="panel-users"
+            aria-labelledby="tab-users"
+          >
+            <div class="cxp-row">
+              <label
+                class="cxp-section-title"
+                data-role="user-title"
+                for="user-input-field"
+              >
+                ユーザーIDを追加
+              </label>
+              <input
+                class="cxp-input"
+                data-role="user-input"
+                id="user-input-field"
+                type="text"
+                placeholder="ユーザーIDを入力"
+              />
+              <button
+                class="cxp-button cxp-primary"
+                data-role="user-add"
+                type="button"
+              >
+                追加
+              </button>
+            </div>
+            <div class="cxp-list" data-role="user-list"></div>
+          </div>
+
+          <div
+            class="cxp-tab-panel"
+            data-panel="posts"
+            role="tabpanel"
+            id="panel-posts"
+            aria-labelledby="tab-posts"
+          >
+            <div class="cxp-row">
+              <div class="cxp-section-title" data-role="post-title">
+                ポストIDを追加
+              </div>
+              <input
+                class="cxp-input"
+                data-role="post-input"
+                type="text"
+                placeholder="ポストURLまたはIDを入力"
+              />
+              <button
+                class="cxp-button cxp-primary"
+                data-role="post-add"
+                type="button"
+              >
+                追加
+              </button>
+            </div>
+            <div class="cxp-list" data-role="post-list"></div>
+          </div>
+
+          <div
+            class="cxp-tab-panel"
+            data-panel="keywords"
+            role="tabpanel"
+            id="panel-keywords"
+            aria-labelledby="tab-keywords"
+          >
+            <div class="cxp-row">
+              <div class="cxp-section-title" data-role="keyword-title">
+                NGワードを追加
+              </div>
+              <input
+                class="cxp-input"
+                data-role="keyword-input"
+                type="text"
+                placeholder="NGワードを入力"
+              />
+              <button
+                class="cxp-button cxp-primary"
+                data-role="keyword-add"
+                type="button"
+              >
+                追加
+              </button>
+            </div>
+            <div class="cxp-list" data-role="keyword-list"></div>
+          </div>
+
+          <div
+            class="cxp-tab-panel"
+            data-panel="settings"
+            role="tabpanel"
+            id="panel-settings"
+            aria-labelledby="tab-settings"
+          >
+            <div class="cxp-column">
+              <div class="cxp-file-label">インポート</div>
+              <div class="cxp-row cxp-row-between">
+                <div class="cxp-row-tight">
+                  <button
+                    class="cxp-button cxp-secondary"
+                    data-role="import-select"
+                    type="button"
+                  >
+                    ファイルを選択
+                  </button>
+                  <div class="cxp-file-name" data-role="import-file-name">
+                    未選択
+                  </div>
+                  <input
+                    type="file"
+                    accept="application/json"
+                    data-role="import-input"
+                    style="display: none"
+                  />
+                </div>
+                <div class="cxp-row-right">
+                  <button
+                    class="cxp-button cxp-secondary"
+                    data-role="import-button"
+                    type="button"
+                  >
+                    インポート
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="cxp-divider" aria-hidden="true"></div>
+
+            <div class="cxp-row cxp-row-between">
+              <div class="cxp-file-label">エクスポート</div>
+              <button
+                class="cxp-button cxp-secondary"
+                data-role="export-button"
+                type="button"
+              >
+                エクスポート
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="cxp-footer">
+      <button class="cxp-button cxp-secondary" data-role="close" type="button">
+        閉じる
+      </button>
+    </div>
+    <div
+      class="cxp-toast"
+      data-role="toast"
+      role="alert"
+      aria-live="assertive"
+      aria-atomic="true"
+    ></div>
+  </div>
+</div>

@@ -4,9 +4,10 @@
   "description": "X Pro user hiding Tampermonkey script",
   "type": "module",
   "scripts": {
-    "build": "rollup -c",
-    "watch": "rollup -c -w",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
+    "build": "npx rollup -c",
+    "watch": "npx rollup -c -w",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test:runInBand": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand"
   },
   "devDependencies": {
     "@rollup/plugin-node-resolve": "^15.0.0",
