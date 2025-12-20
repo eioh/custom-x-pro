@@ -13,7 +13,7 @@ export default {
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=x.com
 // @grant        GM_getValues
 // @grant        GM_setValues
-// @grant        GM_downloadS
+// @grant        GM_download
 // @grant        GM_registerMenuCommand
 // ==/UserScript==`
   }

@@ -55,6 +55,9 @@ const createFakeElement = (tagName = '') => {
       if (name === 'tabindex') {
         this.tabindex = String(value)
       }
+      if (name === 'href') {
+        this.href = value || ''
+      }
     },
     getAttribute (name) {
       if (name === 'data-testid') {
@@ -88,13 +91,20 @@ const createFakeElement = (tagName = '') => {
         return this.datasetTestid === 'tweetText'
       }
       if (selector === CONFIG.POST_FILTER.QUOTE_CONTAINER_SELECTOR) {
-        return this.tagName === 'div' && this.role === 'link' && this.tabindex === '0'
+        return (
+          this.tagName === 'div' &&
+          this.role === 'link' &&
+          this.tabindex === '0'
+        )
       }
       return false
     },
     querySelectorAll (selector) {
-      let matched = this.matches(selector) ? [this] : []
+      let matched = []
       this.children.forEach(child => {
+        if (child.matches(selector)) {
+          matched.push(child)
+        }
         matched = matched.concat(child.querySelectorAll(selector))
       })
       return matched
@@ -210,9 +220,9 @@ describe('App', () => {
   it('ensureHiddenStyleは重複してstyle要素を増やさない', () => {
     app.ensureHiddenStyle()
     app.ensureHiddenStyle()
-    expect(
-      document.querySelectorAll(`#${CONFIG.HIDDEN_STYLE_ID}`).length
-    ).toBe(1)
+    expect(document.querySelectorAll(`#${CONFIG.HIDDEN_STYLE_ID}`).length).toBe(
+      1
+    )
   })
 
   it('filterCellsで非表示クラスを付与/解除する', () => {
@@ -269,7 +279,9 @@ describe('App', () => {
     GM_registerMenuCommand.mock.calls[2][1]()
     expect(app.addTextFilterWordsFromInput).toHaveBeenCalledWith('input-text')
     GM_registerMenuCommand.mock.calls[3][1]()
-    expect(app.addMediaFilterTargetsFromInput).toHaveBeenCalledWith('input-text')
+    expect(app.addMediaFilterTargetsFromInput).toHaveBeenCalledWith(
+      'input-text'
+    )
     GM_registerMenuCommand.mock.calls[4][1]()
     expect(app.promptImportFile).toHaveBeenCalled()
     GM_registerMenuCommand.mock.calls[5][1]()
@@ -287,7 +299,9 @@ describe('App', () => {
   })
 
   it('addHiddenUserIdsFromInputで保存と再適用を行う', () => {
-    const applySpy = jest.spyOn(app, 'applyFilters').mockImplementation(() => {})
+    const applySpy = jest
+      .spyOn(app, 'applyFilters')
+      .mockImplementation(() => {})
     const result = app.addHiddenUserIdsFromInput('valid_user')
     expect(result).toEqual({})
     expect(app.configManager.getIds()).toContain('valid_user')
@@ -318,7 +332,10 @@ describe('App', () => {
     const result = app.addMediaFilterTargetsFromInput('ListA\nListB')
     expect(result).toEqual({})
     expect(saveSpy).toHaveBeenCalled()
-    expect(app.configManager.getMediaFilterTargets()).toEqual(['ListA', 'ListB'])
+    expect(app.configManager.getMediaFilterTargets()).toEqual([
+      'ListA',
+      'ListB'
+    ])
   })
 
   it('extractPostIdsFromTextで複数のIDを抽出する', () => {
@@ -367,7 +384,9 @@ describe('App', () => {
       saveMediaFilterTargets: jest.fn(),
       saveTextFilterWords: jest.fn()
     }
-    const applySpy = jest.spyOn(app, 'applyFilters').mockImplementation(() => {})
+    const applySpy = jest
+      .spyOn(app, 'applyFilters')
+      .mockImplementation(() => {})
     window.confirm.mockReturnValue(true)
     app.processImportedText('{}')
     expect(app.configManager.save).toHaveBeenCalledWith(['u1'])
@@ -377,9 +396,7 @@ describe('App', () => {
     expect(app.configManager.saveMediaFilterTargets).toHaveBeenCalledWith([
       'List'
     ])
-    expect(app.configManager.saveTextFilterWords).toHaveBeenCalledWith([
-      'spam'
-    ])
+    expect(app.configManager.saveTextFilterWords).toHaveBeenCalledWith(['spam'])
     expect(window.alert).toHaveBeenCalled()
     expect(applySpy).toHaveBeenCalled()
   })
