@@ -1,9 +1,9 @@
 export default {
-    input: 'src/index.js',
-    output: {
-        file: 'dist/main.js',
-        format: 'iife',
-        banner: `// ==UserScript==
+  input: 'src/index.js',
+  output: {
+    file: 'dist/main.js',
+    format: 'iife',
+    banner: `// ==UserScript==
 // @name         New Userscript
 // @namespace    http://tampermonkey.net/
 // @version      2025-11-06
@@ -13,7 +13,8 @@ export default {
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=x.com
 // @grant        GM_getValues
 // @grant        GM_setValues
+// @grant        GM_downloadS
 // @grant        GM_registerMenuCommand
 // ==/UserScript==`
-    }
-};
+  }
+}
