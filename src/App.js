@@ -249,12 +249,34 @@ export class App {
    * DOM変更を監視し再フィルタリングする
    */
   startObserver () {
+    const target = this.getObserverTarget()
+    if (!target) {
+      console.warn('MutationObserver監視対象が見つかりませんでした')
+      return
+    }
+    const targetLabel =
+      target === document.body
+        ? 'document.body'
+        : `${target.tagName || 'UNKNOWN'}#${target.id || ''}.${target.className || ''}`
+    console.log('MutationObserver監視対象:', targetLabel)
     this.observer = new MutationObserver(() => this.applyFilters())
-    this.observer.observe(document.body, {
+    this.observer.observe(target, {
       childList: true,
       subtree: true,
-      attributes: true
+      attributes: false
     })
+  }
+
+  /**
+   * 監視対象ノードをカラム領域に絞り、不要な属性変化の監視を避ける
+   * @returns {HTMLElement|null} 監視対象ノード
+   */
+  getObserverTarget () {
+    const column = document.querySelector(CONFIG.MEDIA_FILTER.COLUMN_SELECTOR)
+    if (column?.parentElement) {
+      return column.parentElement
+    }
+    return document.body || null
   }
 
   /**
