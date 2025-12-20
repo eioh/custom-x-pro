@@ -1,0 +1,93 @@
+<div class="cxp-overlay">
+  <div class="cxp-dialog">
+    <div class="cxp-header">Custom X Pro</div>
+    <div class="cxp-body">
+      <div class="cxp-tabs">
+        <button class="cxp-tab-button" data-tab="users">ユーザーID</button>
+        <button class="cxp-tab-button" data-tab="posts">ポストID</button>
+        <button class="cxp-tab-button" data-tab="keywords">NGワード</button>
+        <button class="cxp-tab-button" data-tab="settings">設定</button>
+      </div>
+      <div class="cxp-main">
+        <div class="cxp-status" data-role="status"></div>
+        <div class="cxp-content">
+          <div class="cxp-tab-panel" data-panel="users">
+            <div class="cxp-row">
+              <div class="cxp-section-title" data-role="user-title">ユーザーIDを管理</div>
+              <input
+                class="cxp-input"
+                data-role="user-input"
+                type="text"
+                placeholder="ユーザーIDを入力"
+              />
+              <button class="cxp-button cxp-secondary" data-role="user-add">追加</button>
+            </div>
+            <div class="cxp-list" data-role="user-list"></div>
+          </div>
+
+          <div class="cxp-tab-panel" data-panel="posts">
+            <div class="cxp-row">
+              <div class="cxp-section-title" data-role="post-title">ポストIDを管理</div>
+              <input
+                class="cxp-input"
+                data-role="post-input"
+                type="text"
+                placeholder="ポストURLまたはIDを入力"
+              />
+              <button class="cxp-button cxp-primary" data-role="post-add">追加</button>
+            </div>
+            <div class="cxp-list" data-role="post-list"></div>
+          </div>
+
+          <div class="cxp-tab-panel" data-panel="keywords">
+            <div class="cxp-row">
+              <div class="cxp-section-title" data-role="keyword-title">NGワードを管理</div>
+              <input
+                class="cxp-input"
+                data-role="keyword-input"
+                type="text"
+                placeholder="NGワードを入力"
+              />
+              <button class="cxp-button cxp-primary" data-role="keyword-add">追加</button>
+            </div>
+            <div class="cxp-list" data-role="keyword-list"></div>
+          </div>
+
+          <div class="cxp-tab-panel" data-panel="settings">
+            <div class="cxp-column">
+              <div class="cxp-file-label">設定をインポート</div>
+              <div class="cxp-row cxp-row-between">
+                <div class="cxp-row-tight">
+                  <div class="cxp-row-tight">
+                    <button class="cxp-button cxp-secondary" data-role="import-select">
+                      ファイルを選択
+                    </button>
+                    <div class="cxp-file-name" data-role="import-file-name">未選択</div>
+                    <input
+                      type="file"
+                      accept="application/json"
+                      data-role="import-input"
+                      style="display: none"
+                    />
+                  </div>
+                </div>
+                <div class="cxp-row-right">
+                  <button class="cxp-button cxp-secondary" data-role="import-button">インポート</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="cxp-row cxp-row-between">
+              <div class="cxp-file-label">エクスポート</div>
+              <button class="cxp-button cxp-secondary" data-role="export-button">エクスポート</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="cxp-footer">
+      <button class="cxp-button cxp-secondary" data-role="close">閉じる</button>
+    </div>
+  </div>
+  <div class="cxp-toast" data-role="toast"></div>
+</div>

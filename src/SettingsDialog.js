@@ -1,7 +1,7 @@
-import { CONFIG } from './config.js'
+import dialogHtml from './templates/settings-dialog.html'
 
 /**
- * 設定ダイアログの表示と操作を担当するクラス。
+ * 設定ダイアログの表示と操作を管理するクラス。
  */
 export class SettingsDialog {
   constructor ({ configManager, onChange, extractPostIds, downloadExport }) {
@@ -16,7 +16,7 @@ export class SettingsDialog {
   }
 
   /**
-   * ダイアログを表示する。
+   * ダイアログを開く。
    */
   open () {
     this.ensureElements()
@@ -36,102 +36,118 @@ export class SettingsDialog {
   }
 
   /**
-   * DOM要素の生成とイベント登録を行う。
+   * テンプレートを展開し、DOM参照とイベントをセットする。
    */
   ensureElements () {
     if (this.elements.overlay) {
-      this.renderCurrentTab()
+      this.updateActiveTabState()
       return
     }
 
     this.injectStyle()
 
-    const overlay = document.createElement('div')
-    overlay.className = 'cxp-overlay'
+    const template = document.createElement('template')
+    template.innerHTML = dialogHtml
+    const fragment = template.content.cloneNode(true)
 
-    const dialog = document.createElement('div')
-    dialog.className = 'cxp-dialog'
+    const overlay = fragment.querySelector('.cxp-overlay')
+    const dialog = overlay.querySelector('.cxp-dialog')
+    const tabs = overlay.querySelector('.cxp-tabs')
+    const status = overlay.querySelector('[data-role="status"]')
+    const content = overlay.querySelector('.cxp-content')
+    const toast = overlay.querySelector('[data-role="toast"]')
+    const closeButton = overlay.querySelector('[data-role="close"]')
 
-    const header = document.createElement('div')
-    header.className = 'cxp-header'
-    header.textContent = 'Custom X Pro'
+    this.elements = {
+      overlay,
+      dialog,
+      tabs,
+      status,
+      content,
+      toast,
+      closeButton,
+      tabButtons: Array.from(tabs.querySelectorAll('.cxp-tab-button')),
+      panels: {
+        users: overlay.querySelector('[data-panel="users"]'),
+        posts: overlay.querySelector('[data-panel="posts"]'),
+        keywords: overlay.querySelector('[data-panel="keywords"]'),
+        settings: overlay.querySelector('[data-panel="settings"]')
+      },
+      userTitle: overlay.querySelector('[data-role="user-title"]'),
+      userInput: overlay.querySelector('[data-role="user-input"]'),
+      userAddButton: overlay.querySelector('[data-role="user-add"]'),
+      userList: overlay.querySelector('[data-role="user-list"]'),
+      postTitle: overlay.querySelector('[data-role="post-title"]'),
+      postInput: overlay.querySelector('[data-role="post-input"]'),
+      postAddButton: overlay.querySelector('[data-role="post-add"]'),
+      postList: overlay.querySelector('[data-role="post-list"]'),
+      keywordTitle: overlay.querySelector('[data-role="keyword-title"]'),
+      keywordInput: overlay.querySelector('[data-role="keyword-input"]'),
+      keywordAddButton: overlay.querySelector('[data-role="keyword-add"]'),
+      keywordList: overlay.querySelector('[data-role="keyword-list"]'),
+      importInput: overlay.querySelector('[data-role="import-input"]'),
+      importSelect: overlay.querySelector('[data-role="import-select"]'),
+      importFileName: overlay.querySelector('[data-role="import-file-name"]'),
+      importButton: overlay.querySelector('[data-role="import-button"]'),
+      exportButton: overlay.querySelector('[data-role="export-button"]')
+    }
 
-    const body = document.createElement('div')
-    body.className = 'cxp-body'
-
-    const tabs = document.createElement('div')
-    tabs.className = 'cxp-tabs'
-
-    const main = document.createElement('div')
-    main.className = 'cxp-main'
-
-    const status = document.createElement('div')
-    status.className = 'cxp-status'
-
-    const content = document.createElement('div')
-    content.className = 'cxp-content'
-
-    const footer = document.createElement('div')
-    footer.className = 'cxp-footer'
-
-    const closeButton = document.createElement('button')
-    closeButton.className = 'cxp-button cxp-secondary'
-    closeButton.textContent = '閉じる'
-    closeButton.addEventListener('click', () => this.close())
-
-    footer.appendChild(closeButton)
-
-    const tabList = [
-      { key: 'users', label: 'ユーザーID' },
-      { key: 'posts', label: 'ポストID' },
-      { key: 'keywords', label: 'キーワード' },
-      { key: 'settings', label: '設定' }
-    ]
-    tabList.forEach(tab => {
-      const button = document.createElement('button')
-      button.className = 'cxp-tab-button'
-      button.dataset.tab = tab.key
-      button.textContent = tab.label
-      button.addEventListener('click', () => this.switchTab(tab.key))
-      tabs.appendChild(button)
+    this.elements.tabButtons.forEach(button => {
+      button.addEventListener('click', () => this.switchTab(button.dataset.tab))
     })
-
-    main.appendChild(status)
-    main.appendChild(content)
-
-    body.appendChild(tabs)
-    body.appendChild(main)
-
-    dialog.appendChild(header)
-    dialog.appendChild(body)
-    dialog.appendChild(footer)
-
-    const toast = document.createElement('div')
-    toast.className = 'cxp-toast'
-
-    overlay.appendChild(dialog)
-    overlay.appendChild(toast)
-
+    closeButton.addEventListener('click', () => this.close())
     overlay.addEventListener('click', event => {
       if (event.target === overlay) {
         this.close()
       }
     })
 
-    document.body.appendChild(overlay)
+    this.elements.userAddButton.addEventListener('click', () =>
+      this.handleAddUser(this.elements.userInput)
+    )
+    this.elements.userInput.addEventListener('keypress', event => {
+      if (event.key === 'Enter') {
+        this.handleAddUser(this.elements.userInput)
+      }
+    })
 
-    this.elements = {
-      overlay,
-      dialog,
-      tabs,
-      content,
-      status,
-      toast
-    }
+    this.elements.postAddButton.addEventListener('click', () =>
+      this.handleAddPost(this.elements.postInput)
+    )
+    this.elements.postInput.addEventListener('keypress', event => {
+      if (event.key === 'Enter') {
+        this.handleAddPost(this.elements.postInput)
+      }
+    })
+
+    this.elements.keywordAddButton.addEventListener('click', () =>
+      this.handleAddKeyword(this.elements.keywordInput)
+    )
+    this.elements.keywordInput.addEventListener('keypress', event => {
+      if (event.key === 'Enter') {
+        this.handleAddKeyword(this.elements.keywordInput)
+      }
+    })
+
+    this.elements.importSelect.addEventListener('click', () =>
+      this.elements.importInput.click()
+    )
+    this.elements.importInput.addEventListener('change', () => {
+      const file = this.elements.importInput.files?.[0]
+      this.elements.importFileName.textContent = file ? file.name : '未選択'
+    })
+    this.elements.importButton.addEventListener('click', () =>
+      this.handleImport(this.elements.importInput)
+    )
+    this.elements.exportButton.addEventListener('click', () =>
+      this.handleExport()
+    )
+
+    document.body.appendChild(overlay)
   }
 
   /**
-   * スタイルを注入する。
+   * ダイアログ用のスタイルを注入する。
    */
   injectStyle () {
     const styleId = 'cxp-dialog-style'
@@ -152,6 +168,8 @@ export class SettingsDialog {
       .cxp-main { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
       .cxp-status { min-height: 20px; color: #ff6b6b; font-size: 13px; }
       .cxp-content { background: #242426; border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 12px; flex: 1; overflow: hidden; }
+      .cxp-tab-panel { display: none; height: 100%; }
+      .cxp-tab-panel.active { display: flex; flex-direction: column; gap: 12px; height: 100%; }
       .cxp-section-title { font-weight: 700; margin-bottom: 4px; }
       .cxp-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
       .cxp-input { flex: 1; min-width: 240px; padding: 10px 12px; border-radius: 18px; border: 1px solid rgba(255,255,255,0.15); background: #1e1e20; color: #fff; }
@@ -180,24 +198,37 @@ export class SettingsDialog {
   }
 
   /**
-   * タブ切り替えと描画を行う。
-   * @param {string} tabKey - 表示対象のタブキー
+   * アクティブなタブを切り替える。
+   * @param {string} tabKey - 切り替え先のタブキー
    */
   switchTab (tabKey) {
     this.currentTab = tabKey
-    Array.from(this.elements.tabs.querySelectorAll('.cxp-tab-button')).forEach(
-      button => {
-        button.classList.toggle('active', button.dataset.tab === tabKey)
-      }
-    )
     this.renderCurrentTab()
   }
 
   /**
-   * 現在のタブ内容を描画する。
+   * タブボタンとパネルの選択状態を反映する。
+   */
+  updateActiveTabState () {
+    if (!this.elements.tabButtons) return
+    this.elements.tabButtons.forEach(button => {
+      button.classList.toggle('active', button.dataset.tab === this.currentTab)
+    })
+    if (this.elements.panels) {
+      Object.entries(this.elements.panels).forEach(([key, panel]) => {
+        if (panel) {
+          panel.classList.toggle('active', key === this.currentTab)
+        }
+      })
+    }
+  }
+
+  /**
+   * 現在のタブを描画する。
    */
   renderCurrentTab () {
     this.clearStatus()
+    this.updateActiveTabState()
     switch (this.currentTab) {
       case 'users':
         this.renderUserTab()
@@ -216,7 +247,7 @@ export class SettingsDialog {
   }
 
   /**
-   * エラーとトースト表示をリセットする。
+   * ステータスとトーストをクリアする。
    */
   clearStatus () {
     if (this.elements.status) {
@@ -229,7 +260,7 @@ export class SettingsDialog {
   }
 
   /**
-   * エラーを赤字で表示する。
+   * エラーを表示する。
    * @param {string} message - 表示するメッセージ
    */
   showError (message) {
@@ -238,7 +269,7 @@ export class SettingsDialog {
   }
 
   /**
-   * 成功トーストを表示する。
+   * トーストを表示する。
    * @param {string} message - 表示するメッセージ
    */
   showToast (message) {
@@ -252,58 +283,25 @@ export class SettingsDialog {
    * ユーザーIDタブを描画する。
    */
   renderUserTab () {
-    const content = this.elements.content
-    content.innerHTML = ''
-
-    const headerRow = document.createElement('div')
-    headerRow.className = 'cxp-row'
-    const title = document.createElement('div')
-    title.className = 'cxp-section-title'
     const count = this.configManager.getIds().length
-    title.textContent = `ユーザーIDを追加 (${count}件)`
-
-    const input = document.createElement('input')
-    input.type = 'text'
-    input.placeholder = 'ユーザーIDを入力'
-    input.className = 'cxp-input'
-
-    const addButton = document.createElement('button')
-    addButton.className = 'cxp-button cxp-secondary'
-    addButton.textContent = '追加'
-    addButton.addEventListener('click', () => this.handleAddUser(input))
-    input.addEventListener('keypress', event => {
-      if (event.key === 'Enter') {
-        this.handleAddUser(input)
-      }
-    })
-
-    headerRow.appendChild(title)
-    headerRow.appendChild(input)
-    headerRow.appendChild(addButton)
-
-    const listContainer = document.createElement('div')
-    listContainer.className = 'cxp-list'
-
-    this.renderUserList(listContainer)
-
-    content.appendChild(headerRow)
-    content.appendChild(listContainer)
-
-    this.elements.userInput = input
-    this.elements.userList = listContainer
+    if (this.elements.userTitle) {
+      this.elements.userTitle.textContent = `ユーザーIDの管理 (${count}件)`
+    }
+    this.renderUserList(this.elements.userList)
   }
 
   /**
    * ユーザーIDリストを描画する。
-   * @param {HTMLElement} container - リスト表示先
+   * @param {HTMLElement} container - 描画先の要素
    */
   renderUserList (container) {
+    if (!container) return
     container.innerHTML = ''
     const ids = this.configManager.getIds()
     if (!ids.length) {
       const empty = document.createElement('div')
       empty.className = 'cxp-empty'
-      empty.textContent = 'データなし'
+      empty.textContent = 'まだ追加されていません'
       container.appendChild(empty)
       return
     }
@@ -327,58 +325,25 @@ export class SettingsDialog {
    * ポストIDタブを描画する。
    */
   renderPostTab () {
-    const content = this.elements.content
-    content.innerHTML = ''
-
-    const headerRow = document.createElement('div')
-    headerRow.className = 'cxp-row'
-    const title = document.createElement('div')
-    title.className = 'cxp-section-title'
     const count = this.configManager.getHiddenPosts().length
-    title.textContent = `ポストIDを追加 (${count}件)`
-
-    const input = document.createElement('input')
-    input.type = 'text'
-    input.placeholder = 'ポストURLまたはIDを入力'
-    input.className = 'cxp-input'
-
-    const addButton = document.createElement('button')
-    addButton.className = 'cxp-button cxp-primary'
-    addButton.textContent = '追加'
-    addButton.addEventListener('click', () => this.handleAddPost(input))
-    input.addEventListener('keypress', event => {
-      if (event.key === 'Enter') {
-        this.handleAddPost(input)
-      }
-    })
-
-    headerRow.appendChild(title)
-    headerRow.appendChild(input)
-    headerRow.appendChild(addButton)
-
-    const listContainer = document.createElement('div')
-    listContainer.className = 'cxp-list'
-
-    this.renderPostList(listContainer)
-
-    content.appendChild(headerRow)
-    content.appendChild(listContainer)
-
-    this.elements.postInput = input
-    this.elements.postList = listContainer
+    if (this.elements.postTitle) {
+      this.elements.postTitle.textContent = `ポストIDの管理 (${count}件)`
+    }
+    this.renderPostList(this.elements.postList)
   }
 
   /**
    * ポストIDリストを描画する。
-   * @param {HTMLElement} container - リスト表示先
+   * @param {HTMLElement} container - 描画先の要素
    */
   renderPostList (container) {
+    if (!container) return
     container.innerHTML = ''
     const posts = this.configManager.getHiddenPosts()
     if (!posts.length) {
       const empty = document.createElement('div')
       empty.className = 'cxp-empty'
-      empty.textContent = 'データなし'
+      empty.textContent = 'まだ追加されていません'
       container.appendChild(empty)
       return
     }
@@ -399,61 +364,28 @@ export class SettingsDialog {
   }
 
   /**
-   * キーワードタブを描画する。
+   * NGワードタブを描画する。
    */
   renderKeywordTab () {
-    const content = this.elements.content
-    content.innerHTML = ''
-
-    const headerRow = document.createElement('div')
-    headerRow.className = 'cxp-row'
-    const title = document.createElement('div')
-    title.className = 'cxp-section-title'
     const count = this.configManager.getTextFilterWords().length
-    title.textContent = `キーワードを追加 (${count}件)`
-
-    const input = document.createElement('input')
-    input.type = 'text'
-    input.placeholder = 'NGワードを入力'
-    input.className = 'cxp-input'
-
-    const addButton = document.createElement('button')
-    addButton.className = 'cxp-button cxp-primary'
-    addButton.textContent = '追加'
-    addButton.addEventListener('click', () => this.handleAddKeyword(input))
-    input.addEventListener('keypress', event => {
-      if (event.key === 'Enter') {
-        this.handleAddKeyword(input)
-      }
-    })
-
-    headerRow.appendChild(title)
-    headerRow.appendChild(input)
-    headerRow.appendChild(addButton)
-
-    const listContainer = document.createElement('div')
-    listContainer.className = 'cxp-list'
-
-    this.renderKeywordList(listContainer)
-
-    content.appendChild(headerRow)
-    content.appendChild(listContainer)
-
-    this.elements.keywordInput = input
-    this.elements.keywordList = listContainer
+    if (this.elements.keywordTitle) {
+      this.elements.keywordTitle.textContent = `NGワードの管理 (${count}件)`
+    }
+    this.renderKeywordList(this.elements.keywordList)
   }
 
   /**
-   * キーワードリストを描画する。
-   * @param {HTMLElement} container - リスト表示先
+   * NGワードリストを描画する。
+   * @param {HTMLElement} container - 描画先の要素
    */
   renderKeywordList (container) {
+    if (!container) return
     container.innerHTML = ''
     const words = this.configManager.getTextFilterWords()
     if (!words.length) {
       const empty = document.createElement('div')
       empty.className = 'cxp-empty'
-      empty.textContent = 'データなし'
+      empty.textContent = 'まだ追加されていません'
       container.appendChild(empty)
       return
     }
@@ -477,91 +409,32 @@ export class SettingsDialog {
    * 設定タブを描画する。
    */
   renderSettingsTab () {
-    const content = this.elements.content
-    content.innerHTML = ''
-
-    const importSection = document.createElement('div')
-    importSection.className = 'cxp-column'
-    const importLabel = document.createElement('div')
-    importLabel.className = 'cxp-file-label'
-    importLabel.textContent = 'ファイルをインポートする'
-    const importRow = document.createElement('div')
-    importRow.className = 'cxp-row cxp-row-between'
-    const importLeft = document.createElement('div')
-    importLeft.className = 'cxp-row-tight'
-    const importControls = document.createElement('div')
-    importControls.className = 'cxp-row-tight'
-    const importInput = document.createElement('input')
-    importInput.type = 'file'
-    importInput.accept = 'application/json'
-    importInput.style.display = 'none'
-    const importSelect = document.createElement('button')
-    importSelect.className = 'cxp-button cxp-secondary'
-    importSelect.textContent = 'ファイルを選択'
-    const importFileName = document.createElement('div')
-    importFileName.className = 'cxp-file-name'
-    importFileName.textContent = '未選択'
-    importSelect.addEventListener('click', () => importInput.click())
-    importInput.addEventListener('change', () => {
-      const file = importInput.files && importInput.files[0]
-      importFileName.textContent = file ? file.name : '未選択'
-    })
-    const importButton = document.createElement('button')
-    importButton.className = 'cxp-button cxp-secondary'
-    importButton.textContent = 'インポート'
-    importButton.addEventListener('click', () => this.handleImport(importInput))
-
-    importControls.appendChild(importSelect)
-    importControls.appendChild(importFileName)
-    importControls.appendChild(importInput)
-    importLeft.appendChild(importControls)
-
-    const importRight = document.createElement('div')
-    importRight.className = 'cxp-row-right'
-    importRight.appendChild(importButton)
-
-    importRow.appendChild(importLeft)
-    importRow.appendChild(importRight)
-    importSection.appendChild(importLabel)
-    importSection.appendChild(importRow)
-
-    const exportRow = document.createElement('div')
-    exportRow.className = 'cxp-row cxp-row-between'
-    const exportLabel = document.createElement('div')
-    exportLabel.className = 'cxp-file-label'
-    exportLabel.textContent = 'エクスポート'
-    const exportButton = document.createElement('button')
-    exportButton.className = 'cxp-button cxp-secondary'
-    exportButton.textContent = 'エクスポート'
-    exportButton.addEventListener('click', () => this.handleExport())
-
-    exportRow.appendChild(exportLabel)
-    exportRow.appendChild(exportButton)
-
-    content.appendChild(importSection)
-    content.appendChild(exportRow)
-
-    this.elements.importInput = importInput
+    if (this.elements.importInput) {
+      this.elements.importInput.value = ''
+    }
+    if (this.elements.importFileName) {
+      this.elements.importFileName.textContent = '未選択'
+    }
   }
 
   /**
    * ユーザーIDを追加する。
-   * @param {HTMLInputElement} input - 入力欄
+   * @param {HTMLInputElement} input - 入力要素
    */
   handleAddUser (input) {
     this.clearStatus()
-    const value = (input.value || '').trim()
+    const value = (input?.value || '').trim()
     if (!value) {
       this.showError('ユーザーIDを入力してください')
       return
     }
     if (!this.configManager.isValidUserId(value)) {
-      this.showError('ユーザーIDは英数字とアンダースコアのみ利用できます')
+      this.showError('ユーザーIDは半角英数字とアンダースコアのみで入力してください')
       return
     }
     const current = this.configManager.getIds()
     if (current.includes(value)) {
-      this.showError('既に追加済みのユーザーIDです')
+      this.showError('同じユーザーIDがすでに追加されています')
       return
     }
     this.configManager.save([...current, value], [value])
@@ -573,7 +446,7 @@ export class SettingsDialog {
 
   /**
    * ユーザーIDを削除する。
-   * @param {string} id - 削除対象ID
+   * @param {string} id - 削除するID
    */
   handleRemoveUser (id) {
     this.clearStatus()
@@ -585,13 +458,13 @@ export class SettingsDialog {
 
   /**
    * ポストIDを追加する。
-   * @param {HTMLInputElement} input - 入力欄
+   * @param {HTMLInputElement} input - 入力要素
    */
   handleAddPost (input) {
     this.clearStatus()
-    const value = (input.value || '').trim()
+    const value = (input?.value || '').trim()
     if (!value) {
-      this.showError('ポストIDまたはURLを入力してください')
+      this.showError('ポストのURLまたはIDを入力してください')
       return
     }
     const extracted = this.extractPostIds(value) || []
@@ -617,7 +490,7 @@ export class SettingsDialog {
 
   /**
    * ポストIDを削除する。
-   * @param {string} postId - 削除対象ID
+   * @param {string} postId - 削除するポストID
    */
   handleRemovePost (postId) {
     this.clearStatus()
@@ -628,31 +501,31 @@ export class SettingsDialog {
   }
 
   /**
-   * キーワードを追加する。
-   * @param {HTMLInputElement} input - 入力欄
+   * NGワードを追加する。
+   * @param {HTMLInputElement} input - 入力要素
    */
   handleAddKeyword (input) {
     this.clearStatus()
-    const value = (input.value || '').trim().toLowerCase()
+    const value = (input?.value || '').trim().toLowerCase()
     if (!value) {
-      this.showError('キーワードを入力してください')
+      this.showError('NGワードを入力してください')
       return
     }
     const current = this.configManager.getTextFilterWords()
     if (current.includes(value)) {
-      this.showError('既に追加済みのキーワードです')
+      this.showError('同じNGワードがすでに追加されています')
       return
     }
     this.configManager.saveTextFilterWords([...current, value], [value])
     input.value = ''
     this.renderKeywordList(this.elements.keywordList)
-    this.showToast('キーワードを追加しました')
+    this.showToast('NGワードを追加しました')
     this.onChange()
   }
 
   /**
-   * キーワードを削除する。
-   * @param {string} word - 削除対象
+   * NGワードを削除する。
+   * @param {string} word - 削除するNGワード
    */
   handleRemoveKeyword (word) {
     this.clearStatus()
@@ -663,8 +536,8 @@ export class SettingsDialog {
   }
 
   /**
-   * インポート処理。
-   * @param {HTMLInputElement} input - ファイル入力
+   * 設定をインポートする。
+   * @param {HTMLInputElement} input - ファイル入力要素
    */
   async handleImport (input) {
     this.clearStatus()
@@ -702,6 +575,9 @@ export class SettingsDialog {
     if (input) {
       input.value = ''
     }
+    if (this.elements.importFileName) {
+      this.elements.importFileName.textContent = '未選択'
+    }
 
     this.renderCurrentTab()
     this.showToast('インポートが完了しました')
@@ -709,7 +585,7 @@ export class SettingsDialog {
   }
 
   /**
-   * エクスポート処理。
+   * 設定をエクスポートする。
    */
   handleExport () {
     this.clearStatus()
@@ -733,6 +609,6 @@ export class SettingsDialog {
       document.body.removeChild(link)
       URL.revokeObjectURL(url)
     }
-    this.showToast('エクスポートを開始しました')
+    this.showToast('エクスポートが完了しました')
   }
 }

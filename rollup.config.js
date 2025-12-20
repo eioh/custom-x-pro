@@ -1,5 +1,21 @@
+function htmlAsString () {
+  return {
+    name: 'html-as-string',
+    transform (code, id) {
+      if (!id.endsWith('.html')) {
+        return null
+      }
+      return {
+        code: `export default ${JSON.stringify(code)};`,
+        map: { mappings: '' }
+      }
+    }
+  }
+}
+
 export default {
   input: 'src/index.js',
+  plugins: [htmlAsString()],
   output: {
     file: 'dist/main.js',
     format: 'iife',
