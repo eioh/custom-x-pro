@@ -302,10 +302,46 @@ export class ConfigManager {
     }
 
     /**
+     * ユーザーIDを1件削除する
+     * @param {string} id - 削除対象のユーザーID
+     * @returns {string[]} 更新後のユーザーID一覧
+     */
+    removeHiddenUserId (id) {
+        const normalized = (id || '').trim()
+        if (!normalized) {
+            return this.hiddenUserIds
+        }
+        const next = this.hiddenUserIds.filter(entry => entry !== normalized)
+        if (next.length === this.hiddenUserIds.length) {
+            return this.hiddenUserIds
+        }
+        this.save(next, [])
+        return this.hiddenUserIds
+    }
+
+    /**
      * ポストエントリを取得する
      * @returns {{ id: string, expiresAt: number }[]} ポストエントリ
      */
     getHiddenPosts () {
+        return this.hiddenPosts
+    }
+
+    /**
+     * ポストIDを1件削除する
+     * @param {string} postId - 削除対象のポストID
+     * @returns {{ id: string, expiresAt: number }[]} 更新後のポスト一覧
+     */
+    removeHiddenPostId (postId) {
+        const normalized = (postId || '').trim()
+        if (!normalized) {
+            return this.hiddenPosts
+        }
+        const next = this.hiddenPosts.filter(entry => entry.id !== normalized)
+        if (next.length === this.hiddenPosts.length) {
+            return this.hiddenPosts
+        }
+        this.saveHiddenPosts(next, [])
         return this.hiddenPosts
     }
 
@@ -322,6 +358,24 @@ export class ConfigManager {
      * @returns {string[]} NGワード配列（小文字）
      */
     getTextFilterWords () {
+        return this.textFilterWords
+    }
+
+    /**
+     * NGワードを1件削除する
+     * @param {string} word - 削除対象のNGワード
+     * @returns {string[]} 更新後のNGワード一覧
+     */
+    removeTextFilterWord (word) {
+        const normalized = (word || '').trim().toLowerCase()
+        if (!normalized) {
+            return this.textFilterWords
+        }
+        const next = this.textFilterWords.filter(entry => entry !== normalized)
+        if (next.length === this.textFilterWords.length) {
+            return this.textFilterWords
+        }
+        this.saveTextFilterWords(next, [])
         return this.textFilterWords
     }
 

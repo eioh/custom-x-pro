@@ -254,6 +254,7 @@ describe('App', () => {
   })
 
   it('registerMenuでメニュー登録と各ハンドラ呼び出しを行う', () => {
+    app.settingsDialog = { open: jest.fn() }
     app.addHiddenUserIdsFromInput = jest.fn()
     app.addHiddenPostIdsFromInput = jest.fn()
     app.addTextFilterWordsFromInput = jest.fn()
@@ -271,20 +272,22 @@ describe('App', () => {
 
     app.registerMenu()
 
-    expect(GM_registerMenuCommand).toHaveBeenCalledTimes(6)
+    expect(GM_registerMenuCommand).toHaveBeenCalledTimes(7)
     GM_registerMenuCommand.mock.calls[0][1]()
-    expect(app.addHiddenUserIdsFromInput).toHaveBeenCalledWith('input-text')
+    expect(app.settingsDialog.open).toHaveBeenCalled()
     GM_registerMenuCommand.mock.calls[1][1]()
-    expect(app.addHiddenPostIdsFromInput).toHaveBeenCalledWith('input-text')
+    expect(app.addHiddenUserIdsFromInput).toHaveBeenCalledWith('input-text')
     GM_registerMenuCommand.mock.calls[2][1]()
-    expect(app.addTextFilterWordsFromInput).toHaveBeenCalledWith('input-text')
+    expect(app.addHiddenPostIdsFromInput).toHaveBeenCalledWith('input-text')
     GM_registerMenuCommand.mock.calls[3][1]()
+    expect(app.addTextFilterWordsFromInput).toHaveBeenCalledWith('input-text')
+    GM_registerMenuCommand.mock.calls[4][1]()
     expect(app.addMediaFilterTargetsFromInput).toHaveBeenCalledWith(
       'input-text'
     )
-    GM_registerMenuCommand.mock.calls[4][1]()
-    expect(app.promptImportFile).toHaveBeenCalled()
     GM_registerMenuCommand.mock.calls[5][1]()
+    expect(app.promptImportFile).toHaveBeenCalled()
+    GM_registerMenuCommand.mock.calls[6][1]()
     expect(app.configManager.createExportPayload).toHaveBeenCalled()
     expect(app.downloadExport).toHaveBeenCalledWith({
       fileName: 'export.json',

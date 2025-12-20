@@ -2,6 +2,7 @@ import { CONFIG } from './config.js'
 import { ConfigManager } from './ConfigManager.js'
 import { FilterEngine } from './FilterEngine.js'
 import { ColumnMediaFilter } from './ColumnMediaFilter.js'
+import { SettingsDialog } from './SettingsDialog.js'
 
 /**
  * アプリケーション全体を管理するオーケストレーションクラス
@@ -11,6 +12,12 @@ export class App {
     this.configManager = new ConfigManager()
     this.filterEngine = new FilterEngine(this.configManager)
     this.columnMediaFilter = new ColumnMediaFilter(this.configManager)
+    this.settingsDialog = new SettingsDialog({
+      configManager: this.configManager,
+      onChange: () => this.applyFilters(),
+      extractPostIds: text => this.extractPostIdsFromText(text),
+      downloadExport: payload => this.downloadExport(payload)
+    })
     this.observer = null
   }
 
@@ -29,6 +36,10 @@ export class App {
    * Tampermonkeyメニューに操作項目を登録する
    */
   registerMenu () {
+    GM_registerMenuCommand('🛠️ 設定ダイアログを開く', () => {
+      this.settingsDialog.open()
+    })
+
     GM_registerMenuCommand('👤 ユーザーIDを追加して非表示', () => {
       const input = window.prompt(
         '非表示にするユーザーIDを入力（改行区切り）してください',
