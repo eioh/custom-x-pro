@@ -197,6 +197,9 @@ export class App {
     if (!filteredAdditions.length) {
       return { message: '追加できるNGワードがありません' }
     }
+    filteredAdditions.forEach(word => {
+      console.log('追加したNGワード:', word)
+    })
     const updated = [...currentWords, ...filteredAdditions]
     this.configManager.saveTextFilterWords(updated)
     this.applyFilters()
@@ -259,6 +262,13 @@ export class App {
    * @param {{ fileName: string, mimeType: string, content: string }} payload - ダウンロードデータ
    */
   downloadExport (payload) {
+    const canUseGmDownload = typeof GM_download === 'function'
+
+    if (!canUseGmDownload) {
+      console.warn('GM_downloadが未定義のため、エクスポートを中止します')
+      return
+    }
+
     if (!payload || !payload.content) {
       console.warn('エクスポートデータが空です')
       return
@@ -267,19 +277,16 @@ export class App {
     const dataUrl = `data:${
       payload.mimeType
     };charset=utf-8,${encodeURIComponent(payload.content)}`
-    const canUseGmDownload = typeof GM_download === 'function'
 
-    if (canUseGmDownload) {
-      try {
-        GM_download({
-          url: dataUrl,
-          name: payload.fileName,
-          saveAs: true
-        })
-        return
-      } catch (error) {
-        console.error('GM_downloadでのエクスポートに失敗しました', error)
-      }
+    try {
+      GM_download({
+        url: dataUrl,
+        name: payload.fileName,
+        saveAs: true
+      })
+      return
+    } catch (error) {
+      console.warn('GM_downloadでのエクスポートに失敗したためフォールバックします', error)
     }
 
     const blob = new Blob([payload.content], {
@@ -377,5 +384,4 @@ export class App {
     }
     return this.configManager.sanitizeIds(ids)
   }
-
 }

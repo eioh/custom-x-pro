@@ -227,53 +227,70 @@ export class ConfigManager {
     /**
      * ユーザーIDリストを保存する
      * @param {string[]} ids - 保存対象ユーザーID
+     * @param {string[]} [newIds=[]] - 今回新規に追加したID
      */
-    save (ids) {
+    save (ids, newIds = []) {
         const sanitized = this.sanitizeUserIds(ids)
+        const sanitizedNewIds = this.sanitizeUserIds(newIds)
         this.hiddenUserIds = sanitized
         GM_setValues({
             [CONFIG.STORAGE_KEY]: this.hiddenUserIds
         })
-        console.log('hiddenUserIds 更新:', this.hiddenUserIds)
+        if (sanitizedNewIds.length) {
+            console.log('追加したユーザーID:', sanitizedNewIds)
+        }
     }
 
     /**
      * ポストIDエントリを保存する
      * @param {{ id: string, expiresAt: number }[]} entries - 保存対象エントリ
+     * @param {{ id: string, expiresAt: number }[]} [newEntries=[]] - 今回新規に追加したエントリ
      */
-    saveHiddenPosts (entries) {
+    saveHiddenPosts (entries, newEntries = []) {
         const sanitized = this.sanitizePostEntries(entries)
+        const sanitizedNewEntries = this.sanitizePostEntries(newEntries)
         this.hiddenPosts = sanitized
         GM_setValues({
             [CONFIG.POST_FILTER.STORAGE_KEY]: this.hiddenPosts
         })
-        console.log('hiddenPosts 更新:', this.hiddenPosts)
+        const additions = sanitizedNewEntries.map(entry => entry.id)
+        if (additions.length) {
+            console.log('追加したポストID:', additions)
+        }
     }
 
     /**
      * メディアフィルター対象リスト名を保存する
      * @param {string[]} lists - 保存対象リスト名
+     * @param {string[]} [newLists=[]] - 今回新規に追加したリスト名
      */
-    saveMediaFilterTargets (lists) {
+    saveMediaFilterTargets (lists, newLists = []) {
         const sanitized = this.sanitizeIds(lists)
+        const sanitizedNewLists = this.sanitizeIds(newLists)
         this.mediaFilterTargets = sanitized
         GM_setValues({
             [CONFIG.MEDIA_FILTER.STORAGE_KEY]: this.mediaFilterTargets
         })
-        console.log('mediaFilterTargets 更新:', this.mediaFilterTargets)
+        if (sanitizedNewLists.length) {
+            console.log('追加したメディアフィルター対象:', sanitizedNewLists)
+        }
     }
 
     /**
      * NGワードを保存する
      * @param {string[]} words - 保存対象ワード
+     * @param {string[]} [newWords=[]] - 今回新規に追加したNGワード
      */
-    saveTextFilterWords (words) {
+    saveTextFilterWords (words, newWords = []) {
         const sanitized = this.sanitizeWords(words)
+        const sanitizedNewWords = this.sanitizeWords(newWords)
         this.textFilterWords = sanitized
         GM_setValues({
             [CONFIG.TEXT_FILTER.STORAGE_KEY]: this.textFilterWords
         })
-        console.log('textFilterWords 更新:', this.textFilterWords)
+        if (sanitizedNewWords.length) {
+            console.log('追加したNGワード:', sanitizedNewWords)
+        }
     }
 
     /**
@@ -323,11 +340,13 @@ export class ConfigManager {
             ? Math.max(now, current.expiresAt)
             : now
         const expiresAt = base + CONFIG.POST_FILTER.TTL_MS
+        const shouldLogAddition = !current || this.isExpired(current, now)
         const nextEntries = [
             ...this.hiddenPosts.filter(entry => entry.id !== normalizedId),
             { id: normalizedId, expiresAt }
         ]
-        this.saveHiddenPosts(nextEntries)
+        const newEntries = shouldLogAddition ? [{ id: normalizedId, expiresAt }] : []
+        this.saveHiddenPosts(nextEntries, newEntries)
     }
 
     /**
@@ -345,7 +364,7 @@ export class ConfigManager {
         const updated = this.hiddenPosts.map(entry =>
             entry.id === postId ? { ...entry, expiresAt } : entry
         )
-        this.saveHiddenPosts(updated)
+        this.saveHiddenPosts(updated, [])
     }
 
     /**
@@ -367,7 +386,7 @@ export class ConfigManager {
     purgeExpiredHiddenPosts (now = Date.now()) {
         const filtered = this.hiddenPosts.filter(entry => !this.isExpired(entry, now))
         if (filtered.length !== this.hiddenPosts.length) {
-            this.saveHiddenPosts(filtered)
+            this.saveHiddenPosts(filtered, [])
         }
     }
 
