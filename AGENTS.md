@@ -2,10 +2,6 @@
 
 ## Git ワークフロー
 - `main` では直接作業しない。日常開発は `develop`、大きな変更は `develop` から `feature/xxx` を切る。
-- 作業前後に必ず現在のブランチを確認する（例: `git branch`）。
-
-## コミュニケーション
-- このリポジトリに関する回答（レビューコメント、仕様確認、設計相談など）は、必ず日本語で行ってください。
 
 ## コミットメッセージ
 - Conventional Commits を使用する。書式: `<type>: <description>`（type は英語、description は日本語）。
@@ -13,8 +9,7 @@
 
 ## コーディング規約
 - クラス・メソッド・複雑な関数には日本語で JSDoc を付ける。
-- アーキテクチャ: 責務ごとにクラス分割し、`App` が全体を調整する。`ConfigManager`（設定の読み書き）、`FilterEngine`（判定ロジック）、`ColumnMediaFilter`（メディア専用カラム）。
-- 文字コードは UTF-8 を使用する。
+- アーキテクチャ: 責務ごとにクラス分割し、`App` が全体を調整する。`ConfigManager`（設定の読み書き）、`FilterEngine`（判定ロジック）、`ColumnMediaFilter`（メディア専用カラム）、`SettingsDialog`（設定ダイアログの表示・操作）。
 
 ## 開発フロー
 - ソースは `src/`。ビルド: `npm run build`（監視は `npm run watch`）。成果物は `dist/main.js`。
@@ -36,4 +31,3 @@
 ## 作業完了時の確認
 - 変更に伴い更新が必要なドキュメント（README、仕様書、コメント、AGENTS.md）があれば反映する。
 - エクスポート仕様や設定フォーマットを変えた場合は説明をドキュメントに追記する。
-- 作業完了後、追加すべきルールやナレッジがあれば AGENTS.md を更新する。
